@@ -116,8 +116,15 @@ export const ProfileSetupPage = () => {
         bio: bio.trim(),
         profilePhoto: primaryPhoto,
         photos: photos.filter(Boolean),
+        onboardingCompleted: true,
+        profileCompleted: true,
         isVerified: true
       });
+
+      if (currentUser?.uid) {
+        localStorage.setItem(`heartsync_profile_completed_${currentUser.uid}`, 'true');
+        localStorage.setItem(`heartsync_onboarding_completed_${currentUser.uid}`, 'true');
+      }
 
       navigate('/home');
     } catch (err) {

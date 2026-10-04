@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground';
+import { useAuth } from '../context/AuthContext';
 
 const ONBOARDING_SLIDES = [
   {
@@ -24,19 +26,36 @@ const ONBOARDING_SLIDES = [
 ];
 
 export const OnboardingPage = () => {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { currentUser, updateProfile } = useAuth();
 
-  const handleFinish = () => {
+  const stepParam = parseInt(searchParams.get('step') || '1', 10);
+  const currentSlide = Math.min(Math.max(stepParam - 1, 0), ONBOARDING_SLIDES.length - 1);
+
+  const goToSlide = (slideIndex) => {
+    setSearchParams({ step: (slideIndex + 1).toString() });
+  };
+
+  const handleSkipOrFinish = async () => {
     localStorage.setItem('heartsync_seen_onboarding', 'true');
-    navigate('/login');
+    if (currentUser?.uid) {
+      localStorage.setItem(`heartsync_onboarding_completed_${currentUser.uid}`, 'true');
+      try {
+        await updateProfile({ onboardingCompleted: true });
+      } catch (err) {
+        console.warn('Could not persist onboarding status:', err);
+      }
+    }
+    // Navigate directly to Profile Information
+    navigate('/profile-setup');
   };
 
   const handleNext = () => {
     if (currentSlide < ONBOARDING_SLIDES.length - 1) {
-      setCurrentSlide(prev => prev + 1);
+      goToSlide(currentSlide + 1);
     } else {
-      handleFinish();
+      handleSkipOrFinish();
     }
   };
 
@@ -45,6 +64,34 @@ export const OnboardingPage = () => {
   return (
     <div className="mobile-app-shell">
       <div className="onboarding-screen">
+        {/* Top bar with back arrow if on screen 2 or 3 */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px 0', minHeight: '44px', zIndex: 10 }}>
+          {currentSlide > 0 ? (
+            <button
+              type="button"
+              onClick={() => goToSlide(currentSlide - 1)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.75)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#ad1457',
+                boxShadow: '0 2px 6px rgba(173, 20, 87, 0.15)'
+              }}
+              aria-label="Back to previous screen"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          ) : (
+            <div style={{ width: 36, height: 36 }} />
+          )}
+        </div>
+
         {/* Large Centered Illustration with whitespace */}
         <div className="onboarding-illustration-area animate-fade-in" key={`img-${currentSlide}`}>
           <img
@@ -70,44 +117,41 @@ export const OnboardingPage = () => {
               key={idx}
               type="button"
               className={`pagination-indicator ${idx === currentSlide ? 'active-pill' : 'inactive-dot'}`}
-              onClick={() => setCurrentSlide(idx)}
+              onClick={() => goToSlide(idx)}
               aria-label={`Go to slide ${idx + 1}`}
             />
           ))}
         </div>
 
-        {/* Bottom Actions Row: Skip on left, Next/Get Started on right */}
+        {/* Bottom Actions Row: Skip on left, Next or Get Started on right */}
         <div className="onboarding-bottom-actions">
+          <button
+            id="btn-onboarding-skip"
+            type="button"
+            className="onboarding-skip-link"
+            onClick={handleSkipOrFinish}
+          >
+            Skip
+          </button>
+
           {currentSlide < ONBOARDING_SLIDES.length - 1 ? (
-            <>
-              <button
-                id="btn-onboarding-skip"
-                type="button"
-                className="onboarding-skip-link"
-                onClick={handleFinish}
-              >
-                Skip
-              </button>
-              <button
-                id="btn-onboarding-next"
-                type="button"
-                className="onboarding-next-pill-btn"
-                onClick={handleNext}
-              >
-                NEXT
-              </button>
-            </>
+            <button
+              id="btn-onboarding-next"
+              type="button"
+              className="onboarding-next-pill-btn"
+              onClick={handleNext}
+            >
+              NEXT
+            </button>
           ) : (
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                id="btn-get-started"
-                type="button"
-                className="onboarding-next-pill-btn get-started-btn"
-                onClick={handleFinish}
-              >
-                Get Started
-              </button>
-            </div>
+            <button
+              id="btn-get-started"
+              type="button"
+              className="onboarding-next-pill-btn get-started-btn"
+              onClick={handleSkipOrFinish}
+            >
+              Get Started
+            </button>
           )}
         </div>
 

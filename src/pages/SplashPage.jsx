@@ -12,14 +12,17 @@ export const SplashPage = () => {
     const timer = setTimeout(() => {
       if (!loading) {
         if (currentUser) {
-          navigate('/home', { replace: true });
-        } else {
-          const seenOnboarding = localStorage.getItem('heartsync_seen_onboarding');
-          if (seenOnboarding) {
-            navigate('/login', { replace: true });
-          } else {
+          const isProfileDone = localStorage.getItem(`heartsync_profile_completed_${currentUser.uid}`);
+          const isOnboardingDone = localStorage.getItem(`heartsync_onboarding_completed_${currentUser.uid}`);
+          if (!isOnboardingDone) {
             navigate('/onboarding', { replace: true });
+          } else if (!isProfileDone) {
+            navigate('/profile-setup', { replace: true });
+          } else {
+            navigate('/home', { replace: true });
           }
+        } else {
+          navigate('/login', { replace: true });
         }
       }
     }, 2200);

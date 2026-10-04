@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, Phone } from 'lucide-react';
 import HeartSyncLogo from '../components/HeartSyncLogo';
 import { useAuth } from '../context/AuthContext';
+import { getUserProfile } from '../services/userService';
 
 export const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -77,8 +78,8 @@ export const RegisterPage = () => {
         phoneNumber: formData.mobileNumber.trim(),
         displayName: formData.username.trim()
       });
-      // Direct navigation to Profile Setup (Phone OTP verification removed)
-      navigate('/profile-setup');
+      // Direct navigation to Onboarding (New user flow: Register -> Onboarding -> Profile Setup -> Home)
+      navigate('/onboarding');
     } catch (err) {
       setServerError(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -90,8 +91,18 @@ export const RegisterPage = () => {
     setServerError('');
     setSocialLoading(true);
     try {
-      await googleSignIn();
-      navigate('/profile-setup');
+      const user = await googleSignIn();
+      const profile = await getUserProfile(user?.uid);
+      const isProfileDone = profile?.profileCompleted || localStorage.getItem(`heartsync_profile_completed_${user?.uid}`);
+      const isOnboardingDone = profile?.onboardingCompleted || localStorage.getItem(`heartsync_onboarding_completed_${user?.uid}`);
+
+      if (!isOnboardingDone) {
+        navigate('/onboarding');
+      } else if (!isProfileDone) {
+        navigate('/profile-setup');
+      } else {
+        navigate('/home');
+      }
     } catch (err) {
       setServerError(err.message || 'Google sign-in was cancelled or failed.');
     } finally {

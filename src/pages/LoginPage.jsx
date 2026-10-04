@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { User, Lock } from 'lucide-react';
 import HeartSyncLogo from '../components/HeartSyncLogo';
 import { useAuth } from '../context/AuthContext';
+import { getUserProfile } from '../services/userService';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -18,6 +19,24 @@ export const LoginPage = () => {
 
   const from = location.state?.from?.pathname || '/home';
 
+  const routeUserAfterAuth = async (uid) => {
+    try {
+      const profile = await getUserProfile(uid);
+      const isProfileDone = profile?.profileCompleted || localStorage.getItem(`heartsync_profile_completed_${uid}`);
+      const isOnboardingDone = profile?.onboardingCompleted || localStorage.getItem(`heartsync_onboarding_completed_${uid}`);
+
+      if (!isOnboardingDone) {
+        navigate('/onboarding', { replace: true });
+      } else if (!isProfileDone) {
+        navigate('/profile-setup', { replace: true });
+      } else {
+        navigate(from === '/login' ? '/home' : from, { replace: true });
+      }
+    } catch {
+      navigate('/home', { replace: true });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -27,8 +46,8 @@ export const LoginPage = () => {
     setErrorMsg('');
     setLoading(true);
     try {
-      await login(email.trim(), password);
-      navigate(from, { replace: true });
+      const user = await login(email.trim(), password);
+      await routeUserAfterAuth(user.uid);
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -40,8 +59,8 @@ export const LoginPage = () => {
     setErrorMsg('');
     setSocialLoading(true);
     try {
-      await googleSignIn();
-      navigate(from, { replace: true });
+      const user = await googleSignIn();
+      await routeUserAfterAuth(user.uid);
     } catch (err) {
       setErrorMsg(err.message || 'Google sign-in was cancelled or failed.');
     } finally {
