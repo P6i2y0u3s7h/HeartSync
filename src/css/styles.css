@@ -1589,15 +1589,23 @@ a {
   background: transparent;
 }
 
-.active-users-row {
+.active-users-row,
+.now-active-scroll {
   display: flex;
-  gap: var(--space-md);
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
   overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
   padding-bottom: var(--space-sm);
   scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.active-users-row::-webkit-scrollbar { display: none; }
+.active-users-row::-webkit-scrollbar,
+.now-active-scroll::-webkit-scrollbar { display: none; }
 
 .active-user-item {
   display: flex;
