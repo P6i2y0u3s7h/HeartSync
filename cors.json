@@ -1,0 +1,22 @@
+[
+  {
+    "origin": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+      "https://*.vercel.app",
+      "https://dating-website-97fc7.web.app",
+      "https://dating-website-97fc7.firebaseapp.com"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "Content-Length",
+      "User-Agent",
+      "x-goog-resumable"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
