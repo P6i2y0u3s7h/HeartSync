@@ -4,6 +4,8 @@
 
 .app-page-wrapper {
   position: relative;
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   max-width: 480px;
   margin: 0 auto;
@@ -1927,7 +1929,8 @@ input[type="date"].form-control-hs {
 
 /* Profile Page */
 .profile-page-layout {
-  padding: 16px;
+  padding: 16px 16px 140px;
+  box-sizing: border-box;
 }
 
 .profile-hero-card {
@@ -2085,6 +2088,9 @@ input[type="date"].form-control-hs {
   flex-direction: column;
   gap: 10px;
   margin-top: 8px;
+  margin-bottom: 30px;
+  position: relative;
+  z-index: 10;
 }
 
 .profile-menu-btn {
