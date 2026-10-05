@@ -15,6 +15,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useMessages } from '../hooks/useMessages';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile } from '../services/userService';
+import { extractOtherUid, markChatAsRead } from '../services/chatService';
 import { initialProfiles } from '../data/seedData';
 
 const QUICK_EMOJIS = ['❤️', '😍', '✨', '🔥', '😘', '😊', '🍕', '☕', '🥂', '🎉'];
@@ -30,12 +31,8 @@ export const ChatPage = () => {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Extract other user id from chatId (format: uidA_uidB or chat_aditya)
-  let otherUid = '';
-  if (chatId) {
-    const parts = chatId.replace('chat_', '').split('_');
-    otherUid = parts.find(id => id !== currentUser?.uid) || parts[0];
-  }
+  // Extract other user id from chatId using robust helper
+  const otherUid = extractOtherUid(chatId, currentUser?.uid);
 
   const {
     messages,
@@ -49,6 +46,7 @@ export const ChatPage = () => {
   useEffect(() => {
     // Resolve other user profile
     const fetchOther = async () => {
+      if (!otherUid) return;
       // Check seed data
       const seed = initialProfiles.find(
         p => p.uid === otherUid || p.username === otherUid || p.uid.includes(otherUid) || p.firstName?.toLowerCase() === otherUid?.toLowerCase()
@@ -66,12 +64,24 @@ export const ChatPage = () => {
       } catch (e) {
         console.warn('Error fetching other user:', e);
       }
-      // Fallback to Aditya as default
-      setOtherUser(initialProfiles[0]);
+      // Fallback
+      setOtherUser({
+        uid: otherUid,
+        displayName: 'HeartSync Member',
+        firstName: 'Member',
+        profilePhoto: '/assets/logo-heart.jpg'
+      });
     };
 
     fetchOther();
   }, [otherUid]);
+
+  // Mark chat as read when opened or new messages arrive
+  useEffect(() => {
+    if (chatId && currentUser?.uid) {
+      markChatAsRead(chatId, currentUser.uid);
+    }
+  }, [chatId, currentUser?.uid, messages.length]);
 
   // Scroll to bottom
   useEffect(() => {

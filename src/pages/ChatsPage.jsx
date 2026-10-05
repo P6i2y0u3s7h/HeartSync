@@ -134,10 +134,10 @@ export const ChatsPage = () => {
           ) : (
             <EmptyState
               type="chats"
-              title="No conversations found"
-              message={searchQuery ? 'No chats matched your search.' : 'Like people and match to start chatting with them!'}
-              actionText="Find Matches"
-              onAction={() => navigate('/home')}
+              title={searchQuery ? 'No conversations found' : 'No recent chats yet 💬'}
+              message={searchQuery ? 'No chats matched your search.' : "Start a conversation and connect with someone! Open a profile and tap Chat."}
+              actionText="Find Someone"
+              onAction={() => navigate('/discover')}
             />
           )}
         </section>
