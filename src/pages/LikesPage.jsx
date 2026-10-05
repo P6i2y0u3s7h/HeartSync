@@ -31,7 +31,7 @@ export const LikesPage = () => {
   return (
     <div className="app-page-wrapper">
       <HeartBackground />
-      <Header showFilter={false} title="Likes" />
+      <Header showFilter={false} />
 
       <main className="main-content-scrollable likes-content-layout">
         {/* Tab switch between Likes and People I Like */}

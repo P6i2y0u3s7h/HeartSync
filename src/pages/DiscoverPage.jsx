@@ -40,7 +40,7 @@ export const DiscoverPage = () => {
   return (
     <div className="app-page-wrapper">
       <HeartBackground />
-      <Header onOpenFilter={() => setFilterModalOpen(true)} title="Discover" />
+      <Header onOpenFilter={() => setFilterModalOpen(true)} />
 
       <main className="main-content-scrollable discover-content-layout">
         {/* Search Bar */}
