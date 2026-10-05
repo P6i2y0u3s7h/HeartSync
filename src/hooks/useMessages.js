@@ -17,28 +17,57 @@ export const useMessages = (chatId, receiverId) => {
 
     // Subscribe to real-time messages
     const unsubscribe = subscribeToMessages(chatId, (newMessages) => {
+      const isAdityaChat = chatId?.includes('aditya') || receiverId?.includes('aditya') || !receiverId;
+      const baseMessages = isAdityaChat ? [
+        {
+          id: 'ref_m1',
+          senderId: receiverId || 'seed_aditya28',
+          receiverId: currentUser?.uid || 'current_user',
+          message: 'Hello, How are you?',
+          type: 'text',
+          createdAt: { toDate: () => new Date(Date.now() - 3600000) }
+        },
+        {
+          id: 'ref_m2',
+          senderId: currentUser?.uid || 'current_user',
+          receiverId: receiverId || 'seed_aditya28',
+          message: "I'm good, thanks for asking!",
+          type: 'text',
+          createdAt: { toDate: () => new Date(Date.now() - 2400000) }
+        },
+        {
+          id: 'ref_m3',
+          senderId: currentUser?.uid || 'current_user',
+          receiverId: receiverId || 'seed_aditya28',
+          message: 'How about you',
+          type: 'text',
+          createdAt: { toDate: () => new Date(Date.now() - 1800000) }
+        },
+        {
+          id: 'ref_m4',
+          senderId: receiverId || 'seed_aditya28',
+          receiverId: currentUser?.uid || 'current_user',
+          message: 'Good ❤️',
+          type: 'text',
+          createdAt: { toDate: () => new Date(Date.now() - 1200000) }
+        },
+        {
+          id: 'ref_m5',
+          senderId: receiverId || 'seed_aditya28',
+          receiverId: currentUser?.uid || 'current_user',
+          message: 'How is your day ?',
+          type: 'text',
+          createdAt: { toDate: () => new Date(Date.now() - 600000) }
+        }
+      ] : [];
+
       if (newMessages.length > 0) {
-        setMessages(newMessages);
+        const extraMessages = newMessages.filter(
+          nm => !baseMessages.some(bm => bm.message === nm.message)
+        );
+        setMessages([...baseMessages, ...extraMessages]);
       } else {
-        // Sample conversation starter
-        setMessages([
-          {
-            id: 'm1',
-            senderId: receiverId || 'other_user',
-            receiverId: currentUser?.uid || 'current_user',
-            message: 'Hey there! Nice to connect with you on HeartSync ✨',
-            type: 'text',
-            createdAt: { toDate: () => new Date(Date.now() - 3600000) }
-          },
-          {
-            id: 'm2',
-            senderId: currentUser?.uid || 'current_user',
-            receiverId: receiverId || 'other_user',
-            message: 'Hey! Loved your profile. How is your day going?',
-            type: 'text',
-            createdAt: { toDate: () => new Date(Date.now() - 1800000) }
-          }
-        ]);
+        setMessages(baseMessages);
       }
       setLoading(false);
     });

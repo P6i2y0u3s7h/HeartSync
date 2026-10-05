@@ -3,10 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Send,
-  Smile,
+  Camera,
   Image as ImageIcon,
-  Paperclip,
-  Mic,
+  AudioWaveform,
   MoreVertical,
   Phone,
   Video
@@ -23,7 +22,7 @@ const QUICK_EMOJIS = ['❤️', '😍', '✨', '🔥', '😘', '😊', '🍕', '
 export const ChatPage = () => {
   const { chatId } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
 
   const [inputVal, setInputVal] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -51,7 +50,9 @@ export const ChatPage = () => {
     // Resolve other user profile
     const fetchOther = async () => {
       // Check seed data
-      const seed = initialProfiles.find(p => p.uid === otherUid || p.username === otherUid || p.uid.includes(otherUid));
+      const seed = initialProfiles.find(
+        p => p.uid === otherUid || p.username === otherUid || p.uid.includes(otherUid) || p.firstName?.toLowerCase() === otherUid?.toLowerCase()
+      );
       if (seed) {
         setOtherUser(seed);
         return;
@@ -65,7 +66,7 @@ export const ChatPage = () => {
       } catch (e) {
         console.warn('Error fetching other user:', e);
       }
-      // Fallback
+      // Fallback to Aditya as default
       setOtherUser(initialProfiles[0]);
     };
 
@@ -97,58 +98,66 @@ export const ChatPage = () => {
     }
   };
 
+  const otherUserName = otherUser?.firstName || (otherUser?.displayName ? otherUser.displayName.split(' ')[0] : 'Aditya');
+  const otherUserPhoto = otherUser?.profilePhoto || otherUser?.image || '/assets/profile-aditya.jpg';
+  const currentUserPhoto = (userProfile?.profilePhoto && userProfile.profilePhoto !== '/assets/logo-heart.jpg')
+    ? userProfile.profilePhoto
+    : '/assets/profile-user.jpg';
+
   return (
     <div className="chat-screen-page">
-      {/* Top Header */}
-      <header className="chat-screen-header">
-        <button
-          className="chat-back-btn"
-          onClick={() => navigate('/chats')}
-          aria-label="Back to conversations"
-        >
-          <ArrowLeft size={22} />
-        </button>
+      {/* Soft Cloud-Heart decorative background overlay */}
+      <div className="chat-bg-cloud-overlay" aria-hidden="true" />
 
-        <div
-          className="chat-header-profile"
-          onClick={() => navigate(`/profile/${otherUser?.uid || otherUser?.id || otherUid}`)}
-        >
-          <div className="chat-header-avatar-wrap">
-            <img
-              src={otherUser?.profilePhoto || otherUser?.image || '/assets/logo-heart.jpg'}
-              alt={otherUser?.displayName || 'User'}
-              className="chat-header-avatar-img"
-            />
-            {otherUser?.isOnline && <span className="chat-header-online-dot"></span>}
-          </div>
-          <div className="chat-header-user-info">
-            <h3 className="chat-header-name">{otherUser?.displayName || otherUser?.name || 'HeartSync Member'}</h3>
-            <span className="chat-header-status">
-              {otherUser?.isOnline ? 'Online' : 'Offline'}
-            </span>
+      {/* 1. CHAT HEADER - Full-width pink/magenta header */}
+      <header className="chat-screen-header">
+        <div className="chat-header-left-group">
+          <button
+            id="btn-chat-back"
+            className="chat-back-btn"
+            onClick={() => navigate('/chats')}
+            aria-label="Back to conversations"
+          >
+            <ArrowLeft size={24} color="#ffffff" strokeWidth={2.5} />
+          </button>
+
+          <div
+            className="chat-header-profile"
+            onClick={() => navigate(`/profile/${otherUser?.uid || otherUser?.id || otherUid}`)}
+            role="button"
+            tabIndex={0}
+            title={otherUserName}
+          >
+            <div className="chat-header-avatar-wrap">
+              <img
+                src={otherUserPhoto}
+                alt={otherUserName}
+                className="chat-header-avatar-img"
+              />
+            </div>
+            <h2 className="chat-header-name">{otherUserName}</h2>
           </div>
         </div>
 
         <div className="chat-header-actions">
-          <button className="chat-action-btn-sm" aria-label="Phone Call">
-            <Phone size={18} />
+          <button className="chat-header-action-btn" aria-label="Video Call" title="Video Call">
+            <Video size={22} color="#ffffff" />
           </button>
-          <button className="chat-action-btn-sm" aria-label="Video Call">
-            <Video size={18} />
+          <button className="chat-header-action-btn" aria-label="Phone Call" title="Phone Call">
+            <Phone size={20} color="#ffffff" />
+          </button>
+          <button className="chat-header-action-btn" aria-label="More Options" title="More Options">
+            <MoreVertical size={22} color="#ffffff" />
           </button>
         </div>
       </header>
 
-      {/* Messages area */}
+      {/* 2. CHAT MESSAGES AREA */}
       <div className="chat-messages-container">
         {loading ? (
           <LoadingSpinner text="Loading messages..." />
         ) : (
           <>
-            <div className="chat-encryption-notice">
-              <span>🔒 Messages are encrypted & secure with HeartSync</span>
-            </div>
-
             {messages.map((msg) => {
               const isOutgoing = msg.senderId === currentUser?.uid || msg.senderId === 'current_user';
               return (
@@ -156,6 +165,8 @@ export const ChatPage = () => {
                   key={msg.id}
                   message={msg}
                   isOutgoing={isOutgoing}
+                  otherUserPhoto={otherUserPhoto}
+                  currentUserPhoto={currentUserPhoto}
                 />
               );
             })}
@@ -164,7 +175,7 @@ export const ChatPage = () => {
         )}
       </div>
 
-      {/* Quick Emoji Bar */}
+      {/* Quick Emoji Bar (optional drawer) */}
       {showEmojiPicker && (
         <div className="quick-emoji-drawer animate-pop-in">
           {QUICK_EMOJIS.map((emoji) => (
@@ -180,7 +191,7 @@ export const ChatPage = () => {
         </div>
       )}
 
-      {/* Hidden File Input */}
+      {/* Hidden File Input for Camera and Gallery */}
       <input
         type="file"
         ref={fileInputRef}
@@ -189,56 +200,66 @@ export const ChatPage = () => {
         style={{ display: 'none' }}
       />
 
-      {/* Input bar */}
+      {/* 4. MESSAGE INPUT AREA - Camera/Gallery/Waveform + Pill Input with Send Arrow */}
       <form onSubmit={handleSend} className="chat-input-bar">
-        <button
-          type="button"
-          className="chat-input-icon-btn"
-          onClick={() => setShowEmojiPicker(prev => !prev)}
-          aria-label="Add emoji"
-        >
-          <Smile size={22} />
-        </button>
+        <div className="chat-input-media-group">
+          <button
+            type="button"
+            className="chat-input-media-btn"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Take or attach photo"
+            title="Camera"
+          >
+            <Camera size={23} className="chat-media-icon" />
+          </button>
 
-        <button
-          type="button"
-          className="chat-input-icon-btn"
-          onClick={() => fileInputRef.current?.click()}
-          aria-label="Attach photo"
-        >
-          <ImageIcon size={22} />
-        </button>
+          <button
+            type="button"
+            className="chat-input-media-btn"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Upload image from gallery"
+            title="Gallery"
+          >
+            <ImageIcon size={23} className="chat-media-icon" />
+          </button>
 
-        <input
-          id="chat-text-input"
-          type="text"
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          placeholder="Type message..."
-          className="chat-text-field"
-          autoComplete="off"
-        />
+          <button
+            type="button"
+            className="chat-input-media-btn"
+            onClick={() => setShowEmojiPicker(prev => !prev)}
+            aria-label="Toggle voice note / emojis"
+            title="Voice & Reactions"
+          >
+            <AudioWaveform size={23} className="chat-media-icon" />
+          </button>
+        </div>
 
-        {inputVal.trim() ? (
+        <div className="chat-input-pill-box">
+          <input
+            id="chat-text-input"
+            type="text"
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            placeholder="Send a message."
+            className="chat-pill-input-field"
+            autoComplete="off"
+          />
+
           <button
             id="btn-send-message"
             type="submit"
             disabled={sending}
-            className="chat-send-btn"
+            className="chat-pill-send-btn"
             aria-label="Send message"
+            title="Send"
           >
-            <Send size={18} />
+            <Send size={18} fill="#1a1a1f" color="#1a1a1f" className="chat-send-icon" />
           </button>
-        ) : (
-          <button
-            type="button"
-            className="chat-mic-btn"
-            aria-label="Voice note"
-          >
-            <Mic size={20} />
-          </button>
-        )}
+        </div>
       </form>
+
+      {/* Subtle bottom decorative accent */}
+      <div className="chat-bottom-wave-accent" aria-hidden="true" />
     </div>
   );
 };
