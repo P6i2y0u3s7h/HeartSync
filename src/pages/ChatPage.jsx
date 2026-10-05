@@ -88,6 +88,34 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Dynamic viewport listener for mobile keyboards & dynamic browser toolbars (Realme Narzo 50A / Android Chrome)
+  useEffect(() => {
+    const updateViewportHeight = () => {
+      const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      document.documentElement.style.setProperty('--chat-vh', `${height}px`);
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    updateViewportHeight();
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateViewportHeight);
+      window.visualViewport.addEventListener('scroll', updateViewportHeight);
+    } else {
+      window.addEventListener('resize', updateViewportHeight);
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateViewportHeight);
+        window.visualViewport.removeEventListener('scroll', updateViewportHeight);
+      } else {
+        window.removeEventListener('resize', updateViewportHeight);
+      }
+      document.documentElement.style.removeProperty('--chat-vh');
+    };
+  }, []);
+
   const handleSend = (e) => {
     e?.preventDefault();
     if (!inputVal.trim()) return;
@@ -267,9 +295,6 @@ export const ChatPage = () => {
           </button>
         </div>
       </form>
-
-      {/* Subtle bottom decorative accent */}
-      <div className="chat-bottom-wave-accent" aria-hidden="true" />
     </div>
   );
 };

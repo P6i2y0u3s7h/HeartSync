@@ -1634,24 +1634,31 @@ input[type="date"].form-control-hs {
 
 /* Chat & Messages */
 .chat-screen-page {
-  height: 100vh;
-  height: 100dvh;
+  position: relative;
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
+  /* Viewport height chain: fallback 100vh -> 100dvh -> dynamic visualViewport var */
+  height: 100vh;
+  height: 100dvh;
+  height: var(--chat-vh, 100dvh);
+  max-height: var(--chat-vh, 100dvh);
   display: flex;
   flex-direction: column;
   background: #fdecee;
-  position: relative;
+  /* overflow: hidden ensures chat container clips cleanly to exact viewport
+     and messages-container handles the scrolling */
   overflow: hidden;
+  box-sizing: border-box;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.12);
 }
 
 .chat-bg-cloud-overlay {
   position: absolute;
-  top: 60px;
+  top: 0;
   left: 0;
   right: 0;
-  bottom: 68px;
+  bottom: 0;
   background-image: url('/assets/cloud-hearts.jpg');
   background-repeat: no-repeat;
   background-position: center 22%;
@@ -1660,6 +1667,7 @@ input[type="date"].form-control-hs {
   pointer-events: none;
   z-index: 1;
   mix-blend-mode: multiply;
+  overflow: hidden;
 }
 
 /* 1. CHAT HEADER - Full-width pink/magenta header */
@@ -1668,14 +1676,18 @@ input[type="date"].form-control-hs {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top, 12px));
   background: #cb2d64;
   background: linear-gradient(90deg, #d33268 0%, #c2185b 100%);
-  position: sticky;
+  position: relative;
   top: 0;
   z-index: 30;
-  border-top-left-radius: 28px;
-  border-top-right-radius: 28px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
   box-shadow: 0 3px 12px rgba(194, 24, 91, 0.25);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chat-header-left-group {
@@ -1762,16 +1774,22 @@ input[type="date"].form-control-hs {
 
 /* 2. CHAT MESSAGES CONTAINER */
 .chat-messages-container {
-  flex: 1;
+  /* flex: 1 occupies exact remaining height between header and composer */
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 16px 20px 16px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   position: relative;
   z-index: 2;
   scrollbar-width: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chat-messages-container::-webkit-scrollbar {
@@ -1892,17 +1910,22 @@ input[type="date"].form-control-hs {
 .chat-input-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px 12px 14px;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
   background: #fdecee;
   position: relative;
   z-index: 20;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(203, 45, 100, 0.12);
 }
 
 .chat-input-media-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -1979,13 +2002,56 @@ input[type="date"].form-control-hs {
   stroke-width: 2.2;
 }
 
-.chat-bottom-wave-accent {
-  height: 14px;
-  width: 100%;
-  background: radial-gradient(ellipse at 50% 120%, #d81b60 0%, #c2185b 55%, transparent 100%),
-              linear-gradient(90deg, #d33268 0%, #c2185b 100%);
-  opacity: 0.9;
-  flex-shrink: 0;
+/* Realme Narzo 50A and small Android phones (<= 380px) */
+@media (max-width: 380px) {
+  .chat-screen-header {
+    padding: 10px 12px;
+    padding-top: max(10px, env(safe-area-inset-top, 10px));
+  }
+  .chat-header-name {
+    font-size: 16px;
+  }
+  .chat-header-actions {
+    gap: 10px;
+  }
+  .chat-messages-container {
+    padding: 12px 10px;
+    gap: 10px;
+  }
+  .chat-bubble-body {
+    max-width: 74%;
+    padding: 8px 14px;
+    font-size: 13.5px;
+  }
+  .chat-input-bar {
+    gap: 6px;
+    padding: 8px 10px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+  }
+  .chat-input-media-group {
+    gap: 6px;
+  }
+  .chat-input-media-btn {
+    padding: 2px;
+  }
+  .chat-media-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .chat-pill-input-field {
+    font-size: 13px;
+    padding: 5px 2px;
+  }
+}
+
+/* Ultra-small screens (<= 320px) */
+@media (max-width: 320px) {
+  .chat-input-media-group {
+    gap: 4px;
+  }
+  .chat-bubble-body {
+    max-width: 78%;
+  }
 }
 
 /* Chat List Container & Items (Divider layout matching reference) */
