@@ -2619,60 +2619,58 @@ a {
 }
 
 /* ============================================
-   RESPONSIVE — TABLET (768px+)
+   RESPONSIVE — TABLET & DESKTOP (600px+)
    ============================================ */
-@media (min-width: 768px) {
-  .screen {
-    max-width: 480px;
-    margin: 0 auto;
-    box-shadow: 0 0 60px rgba(194,24,91,0.12);
-    min-height: 100vh;
-  }
-
+@media (min-width: 600px) {
   body {
-    background: linear-gradient(135deg, #FCE3EA 0%, #F8BEBB 50%, #FCE3EA 100%);
+    background: linear-gradient(135deg, #F8BEBB 0%, #FCE3EA 50%, #F8BEBB 100%);
     min-height: 100vh;
-  }
-
-  #app {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
+    min-height: 100dvh;
+    margin: 0;
     padding: 0;
   }
 
-  .bottom-nav {
-    max-width: 400px;
+  #root {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 16px 0;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .screen,
+  .app-page-wrapper,
+  .chat-screen-page,
+  .user-view-profile-page {
+    max-width: 440px;
+    width: 100%;
+    margin: auto;
+    height: calc(100vh - 32px);
+    height: calc(100dvh - 32px);
+    max-height: 880px;
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(194, 24, 91, 0.18), 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(244, 143, 177, 0.35);
   }
 
   .filter-panel {
-    max-width: 480px;
+    max-width: 440px;
     left: 50%;
     transform: translateX(-50%);
     right: auto;
     width: 100%;
   }
 
-  .filter-overlay { background: rgba(47,41,48,0.6); }
-
-  .match-modal-bg { max-width: 480px; margin: 0 auto; }
-}
-
-/* ============================================
-   RESPONSIVE — DESKTOP (1024px+)
-   ============================================ */
-@media (min-width: 1024px) {
-  body { background: linear-gradient(135deg, #F8BEBB 0%, #FCE3EA 50%, #F8BEBB 100%); }
-
-  .screen {
-    max-width: 420px;
-    border-radius: var(--radius-xl);
-    overflow: hidden;
-    margin: var(--space-xl) auto;
-    min-height: calc(100vh - var(--space-xl) * 2);
-    box-shadow: 0 20px 80px rgba(194,24,91,0.2), 0 4px 16px rgba(0,0,0,0.08);
+  .filter-overlay {
+    background: rgba(47, 41, 48, 0.6);
   }
 
-  .bottom-nav { max-width: 380px; }
+  .match-modal-bg {
+    max-width: 440px;
+    margin: 0 auto;
+  }
 }

@@ -172,11 +172,12 @@
 
 /* Floating Bottom Navigation Pill */
 .bottom-nav-container-hs {
-  position: fixed;
+  position: absolute;
   bottom: max(12px, env(safe-area-inset-bottom, 12px));
   left: 0;
   right: 0;
   max-width: 480px;
+  width: 100%;
   margin: 0 auto;
   display: flex;
   justify-content: center;
@@ -2216,7 +2217,9 @@ input[type="date"].form-control-hs {
 
 /* Notifications Page */
 .notifs-content-layout {
-  padding: 16px;
+  padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .notifs-header-row {
@@ -2798,7 +2801,9 @@ input[type="date"].form-control-hs {
 
 /* Settings Page */
 .settings-page-layout {
-  padding: 16px;
+  padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-form {
@@ -2940,7 +2945,34 @@ input[type="date"].form-control-hs {
 
 /* Matches Page Layout */
 .matches-page-layout {
-  padding: 16px;
+  padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Likes, Discover, Home, Chats Layouts */
+.likes-content-layout {
+  padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.discover-content-layout {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.home-content-layout {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chats-page-layout {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px) + 24px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .matches-header-intro {
@@ -3099,8 +3131,8 @@ input[type="date"].form-control-hs {
   .auth-screen-layout {
     border-radius: 36px;
     box-shadow: 0 20px 50px rgba(173, 20, 87, 0.18), 0 4px 16px rgba(0, 0, 0, 0.06);
-    min-height: 780px;
-    max-height: 920px;
+    min-height: min(660px, calc(100vh - 48px));
+    max-height: min(880px, calc(100vh - 48px));
     height: 85vh;
   }
 }
@@ -4016,6 +4048,58 @@ input[type="date"].form-control-hs {
   .menu-btn-left {
     font-size: 12px;
     gap: 6px;
+  }
+
+  /* Profile Grid on 300px - 320px */
+  .profile-grid-hs {
+    padding: 0 8px;
+    gap: 8px;
+  }
+
+  .grid-card-name {
+    font-size: 12px;
+  }
+
+  .grid-card-city {
+    font-size: 10px;
+  }
+
+  .grid-card-actions {
+    padding: 6px 6px;
+  }
+
+  .grid-action-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Likes Tabs */
+  .likes-tab-switcher {
+    padding: 3px;
+    margin: 8px 8px 12px;
+  }
+
+  .tab-pill {
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+
+  /* Auth & Profile Setup on <= 340px */
+  .auth-page-container {
+    padding: 10px 6px 60px;
+  }
+
+  .auth-card-wrapper {
+    padding: 16px 10px;
+  }
+
+  .photo-upload-slot {
+    height: 76px;
+  }
+
+  .gender-pill-btn {
+    padding: 6px 8px;
+    font-size: 11px;
   }
 }
 
