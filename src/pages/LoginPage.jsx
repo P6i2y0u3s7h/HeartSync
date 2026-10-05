@@ -19,15 +19,21 @@ export const LoginPage = () => {
 
   const from = location.state?.from?.pathname || '/home';
 
-  const routeUserAfterAuth = async (uid) => {
+  const routeExistingUser = async (uid, prefetchedProfile) => {
     try {
-      const profile = await getUserProfile(uid);
+      const profile = prefetchedProfile || await getUserProfile(uid);
       const isProfileDone = profile?.profileCompleted || localStorage.getItem(`heartsync_profile_completed_${uid}`);
-      const isOnboardingDone = profile?.onboardingCompleted || localStorage.getItem(`heartsync_onboarding_completed_${uid}`);
 
-      if (!isOnboardingDone) {
-        navigate('/onboarding', { replace: true });
-      } else if (!isProfileDone) {
+      // Ensure onboarding is marked completed for existing users so it never shows
+      if (!profile?.onboardingCompleted) {
+        try {
+          await updateUserProfile(uid, { onboardingCompleted: true });
+        } catch (e) {
+          console.warn('Could not auto-mark onboarding for existing user:', e);
+        }
+      }
+
+      if (!isProfileDone) {
         navigate('/profile-setup', { replace: true });
       } else {
         navigate(from === '/login' ? '/home' : from, { replace: true });
@@ -47,7 +53,8 @@ export const LoginPage = () => {
     setLoading(true);
     try {
       const user = await login(email.trim(), password);
-      await routeUserAfterAuth(user.uid);
+      // Existing login: NEVER send to onboarding!
+      await routeExistingUser(user.uid);
     } catch (err) {
       setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -59,8 +66,18 @@ export const LoginPage = () => {
     setErrorMsg('');
     setSocialLoading(true);
     try {
-      const user = await googleSignIn();
-      await routeUserAfterAuth(user.uid);
+      const res = await googleSignIn();
+      const user = res.user || res;
+      const isNewUser = !!res.isNewUser;
+      const profile = res.profile;
+
+      if (isNewUser) {
+        // Brand-new Google user: Show 3 onboarding screens
+        navigate('/onboarding');
+      } else {
+        // Existing Google user: NEVER show onboarding!
+        await routeExistingUser(user.uid, profile);
+      }
     } catch (err) {
       setErrorMsg(err.message || 'Google sign-in was cancelled or failed.');
     } finally {

@@ -6,20 +6,18 @@ import { useAuth } from '../context/AuthContext';
 
 export const SplashPage = () => {
   const navigate = useNavigate();
-  const { currentUser, loading } = useAuth();
+  const { currentUser, userProfile, loading } = useAuth();
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!loading) {
         if (currentUser) {
-          const isProfileDone = localStorage.getItem(`heartsync_profile_completed_${currentUser.uid}`);
-          const isOnboardingDone = localStorage.getItem(`heartsync_onboarding_completed_${currentUser.uid}`);
-          if (!isOnboardingDone) {
-            navigate('/onboarding', { replace: true });
-          } else if (!isProfileDone) {
-            navigate('/profile-setup', { replace: true });
-          } else {
+          // Existing logged-in user: NEVER show onboarding from Splash!
+          const isProfileDone = userProfile?.profileCompleted || localStorage.getItem(`heartsync_profile_completed_${currentUser.uid}`);
+          if (isProfileDone) {
             navigate('/home', { replace: true });
+          } else {
+            navigate('/profile-setup', { replace: true });
           }
         } else {
           navigate('/login', { replace: true });
@@ -28,7 +26,7 @@ export const SplashPage = () => {
     }, 2200);
 
     return () => clearTimeout(timer);
-  }, [navigate, currentUser, loading]);
+  }, [navigate, currentUser, userProfile, loading]);
 
   return (
     <div className="mobile-app-shell">

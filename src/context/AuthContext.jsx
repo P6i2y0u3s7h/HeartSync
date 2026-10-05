@@ -76,8 +76,11 @@ export const AuthProvider = ({ children }) => {
   const googleSignIn = async () => {
     setError(null);
     try {
-      const user = await loginWithGoogle();
-      return user;
+      const res = await loginWithGoogle();
+      if (res?.profile) {
+        setUserProfile(res.profile);
+      }
+      return res;
     } catch (err) {
       setError(err.message);
       throw err;

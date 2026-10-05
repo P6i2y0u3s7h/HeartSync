@@ -91,17 +91,22 @@ export const RegisterPage = () => {
     setServerError('');
     setSocialLoading(true);
     try {
-      const user = await googleSignIn();
-      const profile = await getUserProfile(user?.uid);
+      const res = await googleSignIn();
+      const user = res.user || res;
+      const isNewUser = !!res.isNewUser;
+      const profile = res.profile || await getUserProfile(user?.uid);
       const isProfileDone = profile?.profileCompleted || localStorage.getItem(`heartsync_profile_completed_${user?.uid}`);
-      const isOnboardingDone = profile?.onboardingCompleted || localStorage.getItem(`heartsync_onboarding_completed_${user?.uid}`);
 
-      if (!isOnboardingDone) {
+      if (isNewUser) {
+        // Brand-new Google user: Show onboarding screens
         navigate('/onboarding');
-      } else if (!isProfileDone) {
-        navigate('/profile-setup');
       } else {
-        navigate('/home');
+        // Existing Google user: NEVER show onboarding!
+        if (!isProfileDone) {
+          navigate('/profile-setup');
+        } else {
+          navigate('/home');
+        }
       }
     } catch (err) {
       setServerError(err.message || 'Google sign-in was cancelled or failed.');

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import WaveBackground from '../components/WaveBackground';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
 
 const ONBOARDING_SLIDES = [
@@ -28,7 +29,19 @@ const ONBOARDING_SLIDES = [
 export const OnboardingPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, userProfile, loading, updateProfile } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    // If the authenticated user has already completed onboarding, do NOT show it again
+    if (userProfile?.onboardingCompleted) {
+      if (userProfile?.profileCompleted) {
+        navigate('/home', { replace: true });
+      } else {
+        navigate('/profile-setup', { replace: true });
+      }
+    }
+  }, [loading, userProfile, navigate]);
 
   const stepParam = parseInt(searchParams.get('step') || '1', 10);
   const currentSlide = Math.min(Math.max(stepParam - 1, 0), ONBOARDING_SLIDES.length - 1);
@@ -38,9 +51,7 @@ export const OnboardingPage = () => {
   };
 
   const handleSkipOrFinish = async () => {
-    localStorage.setItem('heartsync_seen_onboarding', 'true');
     if (currentUser?.uid) {
-      localStorage.setItem(`heartsync_onboarding_completed_${currentUser.uid}`, 'true');
       try {
         await updateProfile({ onboardingCompleted: true });
       } catch (err) {
@@ -58,6 +69,21 @@ export const OnboardingPage = () => {
       handleSkipOrFinish();
     }
   };
+
+  // Prevent flashing onboarding screens for existing users while Firestore profile data is loading
+  if (loading) {
+    return (
+      <div className="mobile-app-shell">
+        <div className="fullscreen-loading">
+          <LoadingSpinner text="Loading..." />
+        </div>
+      </div>
+    );
+  }
+
+  if (userProfile?.onboardingCompleted) {
+    return null;
+  }
 
   const slide = ONBOARDING_SLIDES[currentSlide];
 

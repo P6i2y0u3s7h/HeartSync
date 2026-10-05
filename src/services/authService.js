@@ -5,7 +5,8 @@ import {
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { auth, googleProvider, db, firebaseConfig } from '../firebase/firebaseConfig';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -158,6 +159,8 @@ export const registerWithEmail = async (email, password, additionalData = {}) =>
     photos: additionalData.photos || ['/assets/logo-heart.jpg'],
     isVerified: false,
     isOnline: true,
+    onboardingCompleted: false,
+    profileCompleted: false,
     lastSeen: new Date().toISOString(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -266,6 +269,8 @@ export const loginWithGoogle = async () => {
       throw new Error('Google authentication did not return a valid user.');
     }
 
+    const additionalInfo = getAdditionalUserInfo(result);
+
     // Safe debugging logs (no tokens or credentials)
     console.log('Google authentication successful:', user.uid);
     console.log('Firestore project:', firebaseConfig.projectId);
@@ -290,7 +295,11 @@ export const loginWithGoogle = async () => {
       throw readErr;
     }
 
-    if (!userSnap.exists()) {
+    // Determine if this is a brand-new user:
+    // Firebase Auth provides isNewUser on the credential, or if the Firestore document does not exist
+    const isNewUser = !!additionalInfo?.isNewUser || !userSnap?.exists();
+
+    if (isNewUser) {
       const [firstName = '', lastName = ''] = (user.displayName || '').split(' ');
       const newProfileData = {
         uid: user.uid,
@@ -302,6 +311,8 @@ export const loginWithGoogle = async () => {
         photos: [user.photoURL || '/assets/logo-heart.jpg'],
         isVerified: user.emailVerified || false,
         isOnline: true,
+        onboardingCompleted: false, // Brand-new Google user: Needs onboarding
+        profileCompleted: false,
         lastSeen: new Date().toISOString(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -317,28 +328,30 @@ export const loginWithGoogle = async () => {
           stack: writeErr?.stack
         });
         console.log("navigator.onLine:", navigator.onLine);
-        throw writeErr;
       }
+
+      return { user, isNewUser: true, profile: newProfileData, uid: user.uid };
     } else {
+      // Existing Google user: Ensure onboardingCompleted is permanently set to true
+      const existingData = userSnap.data() || {};
       try {
         await setDoc(userRef, {
           isOnline: true,
           lastSeen: new Date().toISOString(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          onboardingCompleted: true
         }, { merge: true });
       } catch (updateErr) {
-        console.error("FIRESTORE FULL ERROR", {
-          name: updateErr?.name,
-          code: updateErr?.code,
-          message: updateErr?.message,
-          stack: updateErr?.stack,
-          customData: updateErr?.customData
-        });
-        throw updateErr;
+        console.warn("Could not update online status for existing user:", updateErr);
       }
-    }
 
-    return user;
+      return {
+        user,
+        isNewUser: false,
+        profile: { ...existingData, onboardingCompleted: true },
+        uid: user.uid
+      };
+    }
   } catch (error) {
     console.error('Google login error:', error);
     console.error('Firebase error:', {
