@@ -11,6 +11,11 @@ export const ChatListItem = ({ chat }) => {
     <div
       className="chat-list-item-hs"
       onClick={() => navigate(`/chat/${chat.id}`)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') navigate(`/chat/${chat.id}`);
+      }}
     >
       <div className="chat-item-avatar-box">
         <img src={photo} alt={name} className="chat-item-avatar-img" />
@@ -18,15 +23,16 @@ export const ChatListItem = ({ chat }) => {
       </div>
 
       <div className="chat-item-content">
-        <div className="chat-item-top-line">
+        <div className="chat-item-main-col">
           <h4 className="chat-item-name">{name}</h4>
-          <span className="chat-item-time">{chat.lastMessageAt || ''}</span>
-        </div>
-        <div className="chat-item-bottom-line">
           <p className="chat-item-preview">{chat.lastMessage || 'Start conversation...'}</p>
+        </div>
+
+        <div className="chat-item-meta-col">
           {chat.unreadCount > 0 && (
             <span className="chat-item-unread-count">{chat.unreadCount}</span>
           )}
+          <span className="chat-item-time">{chat.lastMessageAt || ''}</span>
         </div>
       </div>
     </div>
