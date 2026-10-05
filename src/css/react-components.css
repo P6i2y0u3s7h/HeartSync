@@ -1929,7 +1929,7 @@ input[type="date"].form-control-hs {
 
 /* Profile Page */
 .profile-page-layout {
-  padding: 16px 16px 140px;
+  padding: 16px 16px 100px;
   box-sizing: border-box;
 }
 
@@ -2088,7 +2088,6 @@ input[type="date"].form-control-hs {
   flex-direction: column;
   gap: 10px;
   margin-top: 8px;
-  margin-bottom: 30px;
   position: relative;
   z-index: 10;
 }
