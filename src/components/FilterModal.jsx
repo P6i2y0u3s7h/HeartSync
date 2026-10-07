@@ -15,6 +15,7 @@ export const FilterModal = ({ isOpen, onClose, filters, onApply }) => {
     preferredGender: 'All',
     city: '',
     verifiedOnly: false,
+    onlineOnly: false,
     interests: []
   });
 
@@ -38,6 +39,7 @@ export const FilterModal = ({ isOpen, onClose, filters, onApply }) => {
       preferredGender: 'All',
       city: '',
       verifiedOnly: false,
+      onlineOnly: false,
       interests: []
     };
     setLocalFilters(defaultFilters);
@@ -123,7 +125,7 @@ export const FilterModal = ({ isOpen, onClose, filters, onApply }) => {
             />
           </div>
 
-          {/* Verified Only */}
+          {/* Verified Only & Online Now */}
           <div className="filter-section checkbox-section">
             <label className="checkbox-custom-label">
               <input
@@ -135,6 +137,20 @@ export const FilterModal = ({ isOpen, onClose, filters, onApply }) => {
                 {localFilters.verifiedOnly && <Check size={14} color="#fff" />}
               </span>
               <span className="checkbox-text">Verified Profiles Only</span>
+            </label>
+
+            <label className="checkbox-custom-label" style={{ marginTop: '10px' }}>
+              <input
+                type="checkbox"
+                checked={localFilters.onlineOnly || false}
+                onChange={(e) => setLocalFilters({ ...localFilters, onlineOnly: e.target.checked })}
+              />
+              <span className="checkbox-custom-box">
+                {localFilters.onlineOnly && <Check size={14} color="#fff" />}
+              </span>
+              <span className="checkbox-text">
+                <span className="filter-online-dot"></span> Online Now
+              </span>
             </label>
           </div>
 

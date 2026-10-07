@@ -33,23 +33,33 @@ export const useProfiles = (initialFilters = {}) => {
 
   const handleLike = async (profile) => {
     const target = profile || currentProfile;
-    if (!target) return;
+    if (!target) return null;
 
     // Advance card
     setCurrentIndex(prev => prev + 1);
 
     try {
-      const result = await sendLike(userProfile || { uid: currentUser?.uid, displayName: 'You' }, target);
-      if (result.isMatch) {
+      const myUser = userProfile || {
+        uid: currentUser?.uid || 'me',
+        displayName: userProfile?.displayName || currentUser?.displayName || 'You',
+        profilePhoto: userProfile?.profilePhoto || '/assets/logo-heart.jpg'
+      };
+      const result = await sendLike(myUser, target);
+      if (result && result.isMatch) {
+        const u1 = myUser;
+        const u2 = target;
         setMatchData({
-          user1: userProfile || { uid: currentUser?.uid, displayName: 'You', profilePhoto: '/assets/logo-heart.jpg' },
-          user2: target
+          user1: u1,
+          user2: u2,
+          matchData: result.matchData
         });
         setShowMatchModal(true);
+        return { ...result, user1: u1, user2: u2 };
       }
       return result;
     } catch (err) {
       console.error('Error sending like:', err);
+      return { isMatch: false };
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getLikesGiven, getLikesReceived, sendLike } from '../services/likeService';
 import { getUserProfile } from '../services/userService';
+import { getBlockedUserIds } from '../services/blockService';
 import { initialProfiles } from '../data/seedData';
 
 export const useLikes = () => {
@@ -17,14 +18,18 @@ export const useLikes = () => {
     }
     setLoading(true);
     try {
-      const [givenIds, receivedIds] = await Promise.all([
+      const [givenIds, receivedIds, blockedIds] = await Promise.all([
         getLikesGiven(currentUser.uid),
-        getLikesReceived(currentUser.uid)
+        getLikesReceived(currentUser.uid),
+        getBlockedUserIds(currentUser.uid)
       ]);
+
+      const blockedSet = new Set(blockedIds);
 
       // Resolve profiles for given
       const givenProfiles = [];
       for (const id of givenIds) {
+        if (blockedSet.has(id)) continue;
         const seedMatch = initialProfiles.find(p => p.uid === id);
         if (seedMatch) {
           givenProfiles.push(seedMatch);
@@ -37,6 +42,7 @@ export const useLikes = () => {
       // Resolve profiles for received
       const receivedProfiles = [];
       for (const id of receivedIds) {
+        if (blockedSet.has(id)) continue;
         const seedMatch = initialProfiles.find(p => p.uid === id);
         if (seedMatch) {
           receivedProfiles.push(seedMatch);
@@ -48,8 +54,8 @@ export const useLikes = () => {
 
       // If receivedProfiles is empty in demo, provide mock likes to showcase the UI
       if (receivedProfiles.length === 0 && givenProfiles.length === 0) {
-        setPeopleWhoLikedMe([initialProfiles[0], initialProfiles[1]]);
-        setPeopleILiked([initialProfiles[3]]);
+        setPeopleWhoLikedMe([initialProfiles[0], initialProfiles[1]].filter(p => !blockedSet.has(p.uid)));
+        setPeopleILiked([initialProfiles[3]].filter(p => !blockedSet.has(p.uid)));
       } else {
         setPeopleILiked(givenProfiles);
         setPeopleWhoLikedMe(receivedProfiles);

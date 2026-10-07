@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -54,13 +55,45 @@ export const createMatch = async (user1, user2) => {
   return matchData;
 };
 
+export const unmatchUsers = async (currentUid, targetUid) => {
+  if (!currentUid || !targetUid) return;
+
+  const matchId = getMatchId(currentUid, targetUid);
+  const matchRef = doc(db, 'matches', matchId);
+
+  // Remove the match document
+  try {
+    await deleteDoc(matchRef);
+  } catch (err) {
+    console.warn('Error deleting match doc, marking inactive:', err);
+    await setDoc(matchRef, { isActive: false, uncompleted: true }, { merge: true });
+  }
+
+  // Remove likes so they don't immediately rematch
+  try {
+    const like1Ref = doc(db, 'likes', `${currentUid}_${targetUid}`);
+    const like2Ref = doc(db, 'likes', `${targetUid}_${currentUid}`);
+    await Promise.all([
+      deleteDoc(like1Ref).catch(() => {}),
+      deleteDoc(like2Ref).catch(() => {})
+    ]);
+  } catch (err) {
+    console.warn('Error cleaning up likes during unmatch:', err);
+  }
+};
+
 export const getUserMatches = async (currentUid) => {
   try {
     const matchesRef = collection(db, 'matches');
     const q = query(matchesRef, where('userIds', 'array-contains', currentUid));
     const snap = await getDocs(q);
     const matches = [];
-    snap.forEach(d => matches.push({ id: d.id, ...d.data() }));
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.isActive !== false) {
+        matches.push({ id: d.id, ...data });
+      }
+    });
     return matches;
   } catch (error) {
     console.error('Error getting user matches:', error);
@@ -73,9 +106,15 @@ export const subscribeToUserMatches = (currentUid, callback) => {
   const q = query(matchesRef, where('userIds', 'array-contains', currentUid));
   return onSnapshot(q, (snapshot) => {
     const matches = [];
-    snapshot.forEach(d => matches.push({ id: d.id, ...d.data() }));
+    snapshot.forEach(d => {
+      const data = d.data();
+      if (data.isActive !== false) {
+        matches.push({ id: d.id, ...data });
+      }
+    });
     callback(matches);
   }, (error) => {
     console.error('Match subscription error:', error);
   });
 };
+

@@ -10,12 +10,14 @@ import DiscoverPage from './pages/DiscoverPage';
 import LikesPage from './pages/LikesPage';
 import PeopleILikePage from './pages/PeopleILikePage';
 import MatchesPage from './pages/MatchesPage';
+import MatchPage from './pages/MatchPage';
 import ChatsPage from './pages/ChatsPage';
 import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
 import UserProfileViewPage from './pages/UserProfileViewPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
+import FavoritesPage from './pages/FavoritesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export const App = () => {
@@ -76,6 +78,18 @@ export const App = () => {
         }
       />
       <Route
+        path="/match"
+        element={<MatchPage />}
+      />
+      <Route
+        path="/match/:matchId"
+        element={<MatchPage />}
+      />
+      <Route
+        path="/its-a-match"
+        element={<MatchPage />}
+      />
+      <Route
         path="/chats"
         element={
           <ProtectedRoute>
@@ -120,6 +134,14 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/favorites"
+        element={
+          <ProtectedRoute>
+            <FavoritesPage />
           </ProtectedRoute>
         }
       />

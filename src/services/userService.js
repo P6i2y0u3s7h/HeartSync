@@ -12,6 +12,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { initialProfiles } from '../data/seedData';
+import { getBlockedUserIds } from './blockService';
 
 export const getUserProfile = async (uid) => {
   if (!uid) return null;
@@ -92,15 +93,47 @@ export const updateUserPreferences = async (uid, preferences) => {
   }
 };
 
+let lastPresenceUpdate = 0;
+export const updateOnlinePresence = async (uid, isOnline = true) => {
+  if (!uid) return;
+  const now = Date.now();
+  // Throttle updates: do not write to Firestore more than once every 3 minutes unless going offline
+  if (isOnline && (now - lastPresenceUpdate) < 180000) {
+    return;
+  }
+  lastPresenceUpdate = now;
+  try {
+    const docRef = doc(db, 'users', uid);
+    await setDoc(docRef, {
+      isOnline,
+      lastSeen: new Date().toISOString(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    // Fail silently in offline or restricted environments
+  }
+};
+
 export const getDiscoverProfiles = async (currentUid, preferences = {}) => {
   try {
+    // Fetch blocked user IDs so blocked profiles never appear in Discover
+    let blockedIds = [];
+    if (currentUid) {
+      try {
+        blockedIds = await getBlockedUserIds(currentUid);
+      } catch (err) {
+        console.warn('Could not load blocked IDs:', err);
+      }
+    }
+    const blockedSet = new Set(blockedIds);
+
     let firestoreUsers = [];
     try {
       const usersRef = collection(db, 'users');
       const q = query(usersRef, limit(30));
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((d) => {
-        if (d.id !== currentUid) {
+        if (d.id !== currentUid && !blockedSet.has(d.id)) {
           firestoreUsers.push({ id: d.id, ...d.data() });
         }
       });
@@ -113,26 +146,49 @@ export const getDiscoverProfiles = async (currentUid, preferences = {}) => {
     const existingIds = new Set(combined.map(u => u.uid || u.id));
 
     initialProfiles.forEach(seed => {
-      if (seed.uid !== currentUid && !existingIds.has(seed.uid)) {
+      if (seed.uid !== currentUid && !existingIds.has(seed.uid) && !blockedSet.has(seed.uid)) {
         combined.push({ id: seed.uid, ...seed });
       }
     });
 
     // Apply filtering
     return combined.filter(profile => {
+      // Exclude blocked
+      if (blockedSet.has(profile.uid || profile.id)) return false;
+
+      // Gender filter
       if (preferences.preferredGender && preferences.preferredGender !== 'All') {
         if (profile.gender && profile.gender.toLowerCase() !== preferences.preferredGender.toLowerCase()) {
           return false;
         }
       }
+
+      // Age range filter
       if (preferences.minAge && profile.age < preferences.minAge) return false;
       if (preferences.maxAge && profile.age > preferences.maxAge) return false;
+
+      // Verified only
       if (preferences.verifiedOnly && !profile.isVerified) return false;
+
+      // Online now filter
+      if (preferences.onlineOnly && !profile.isOnline) return false;
+
+      // City filter
       if (preferences.city && preferences.city.trim() !== '') {
-        if (!profile.city || !profile.city.toLowerCase().includes(preferences.city.toLowerCase())) {
+        if (!profile.city || !profile.city.toLowerCase().includes(preferences.city.toLowerCase().trim())) {
           return false;
         }
       }
+
+      // Interests filter
+      if (preferences.interests && preferences.interests.length > 0) {
+        const profileInterests = (profile.interests || []).map(i => i.toLowerCase());
+        const hasMatchingInterest = preferences.interests.some(wanted =>
+          profileInterests.includes(wanted.toLowerCase())
+        );
+        if (!hasMatchingInterest) return false;
+      }
+
       return true;
     });
   } catch (error) {

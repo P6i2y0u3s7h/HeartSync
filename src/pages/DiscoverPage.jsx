@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import SearchBar from '../components/SearchBar';
 import ProfileGrid from '../components/ProfileGrid';
 import FilterModal from '../components/FilterModal';
-import MatchModal from '../components/MatchModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 import HeartBackground from '../components/HeartBackground';
 import { useProfiles } from '../hooks/useProfiles';
 
 export const DiscoverPage = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const {
@@ -20,11 +21,21 @@ export const DiscoverPage = () => {
     setFilters,
     handleLike,
     handlePass,
-    matchData,
-    showMatchModal,
-    closeMatchModal,
     refreshProfiles
   } = useProfiles();
+
+  const handleProfileLike = async (profile) => {
+    const res = await handleLike(profile);
+    if (res && res.isMatch) {
+      navigate('/match', {
+        state: {
+          user1: res.user1,
+          user2: res.user2,
+          matchData: res.matchData
+        }
+      });
+    }
+  };
 
   const filteredProfiles = useMemo(() => {
     if (!searchTerm.trim()) return profiles;
@@ -59,7 +70,7 @@ export const DiscoverPage = () => {
           ) : filteredProfiles.length > 0 ? (
             <ProfileGrid
               profiles={filteredProfiles}
-              onLike={(p) => handleLike(p)}
+              onLike={(p) => handleProfileLike(p)}
               onPass={(p) => handlePass(p)}
             />
           ) : (
@@ -79,13 +90,6 @@ export const DiscoverPage = () => {
         onClose={() => setFilterModalOpen(false)}
         filters={filters}
         onApply={(newFilters) => setFilters(newFilters)}
-      />
-
-      <MatchModal
-        isOpen={showMatchModal}
-        onClose={closeMatchModal}
-        user1={matchData?.user1}
-        user2={matchData?.user2}
       />
 
       <BottomNavigation />

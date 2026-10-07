@@ -36,6 +36,19 @@ export const HomePage = () => {
     setFilters(newFilters);
   };
 
+  const handleSwipeLike = async (profile) => {
+    const res = await handleLike(profile);
+    if (res && res.isMatch) {
+      navigate('/match', {
+        state: {
+          user1: res.user1,
+          user2: res.user2,
+          matchData: res.matchData
+        }
+      });
+    }
+  };
+
   return (
     <div className="app-page-wrapper">
       <HeartBackground />
@@ -62,9 +75,9 @@ export const HomePage = () => {
             <div className="swipe-card-stage animate-fade-in">
               <ProfileCard
                 profile={currentProfile}
-                onLike={() => handleLike(currentProfile)}
+                onLike={() => handleSwipeLike(currentProfile)}
                 onPass={() => handlePass(currentProfile)}
-                onInterested={() => handleLike(currentProfile)}
+                onInterested={() => handleSwipeLike(currentProfile)}
                 onCardClick={() => navigate(`/profile/${currentProfile.uid || currentProfile.id}`)}
               />
             </div>
@@ -89,13 +102,6 @@ export const HomePage = () => {
         onClose={() => setFilterModalOpen(false)}
         filters={filters}
         onApply={handleApplyFilters}
-      />
-
-      <MatchModal
-        isOpen={showMatchModal}
-        onClose={closeMatchModal}
-        user1={matchData?.user1}
-        user2={matchData?.user2}
       />
 
       <BottomNavigation />

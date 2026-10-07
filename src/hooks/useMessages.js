@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { subscribeToMessages, sendMessage } from '../services/messageService';
+import {
+  subscribeToMessages,
+  sendMessage,
+  deleteMessage,
+  deleteMessageForMe,
+  deleteMessageForEveryone,
+  toggleStarMessage,
+  reactToMessage,
+  markMessagesInChatAsRead
+} from '../services/messageService';
 import { uploadChatImage } from '../services/storageService';
 import { markChatAsRead, extractOtherUid } from '../services/chatService';
 import { initialProfiles } from '../data/seedData';
@@ -20,8 +29,8 @@ export const useMessages = (chatId, receiverId) => {
       return;
     }
 
-    // Subscribe to real-time messages
-    const unsubscribe = subscribeToMessages(chatId, (newMessages) => {
+    // Subscribe to real-time messages filtered by user and disappearing expiration
+    const unsubscribe = subscribeToMessages(chatId, currentUser?.uid, (newMessages) => {
       // If legacy demo chat_aditya with no messages in Firestore, fallback to sample messages
       if (newMessages.length === 0 && chatId === 'chat_aditya') {
         const sampleMessages = [
@@ -73,9 +82,10 @@ export const useMessages = (chatId, receiverId) => {
       setLoading(false);
     });
 
-    // Mark conversation as read when opened
+    // Mark conversation and individual messages as read when opened
     if (chatId && currentUser?.uid) {
       markChatAsRead(chatId, currentUser.uid);
+      markMessagesInChatAsRead(chatId, currentUser.uid);
     }
 
     return () => unsubscribe();
@@ -226,13 +236,101 @@ export const useMessages = (chatId, receiverId) => {
     }
   };
 
+  const deleteMessageById = async (messageId) => {
+    if (!chatId || !messageId) return;
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    try {
+      await deleteMessage(chatId, messageId);
+    } catch (err) {
+      console.warn('Failed to delete message in firestore:', err);
+    }
+  };
+
+  const deleteForMe = async (messageId) => {
+    if (!chatId || !messageId || !currentUser?.uid) return;
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    try {
+      await deleteMessageForMe(chatId, messageId, currentUser.uid);
+    } catch (err) {
+      console.warn('Failed to delete message for me:', err);
+    }
+  };
+
+  const deleteForEveryone = async (messageId) => {
+    if (!chatId || !messageId || !currentUser?.uid) return;
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId) {
+        return { ...m, isDeletedForEveryone: true, message: 'This message was deleted.', imageUrl: '' };
+      }
+      return m;
+    }));
+    try {
+      await deleteMessageForEveryone(chatId, messageId, currentUser.uid);
+    } catch (err) {
+      console.warn('Failed to delete message for everyone:', err);
+    }
+  };
+
+  const deleteMultiple = async (messageIds, type = 'forMe') => {
+    if (!chatId || !messageIds || messageIds.length === 0 || !currentUser?.uid) return;
+    if (type === 'forMe') {
+      setMessages(prev => prev.filter(m => !messageIds.includes(m.id)));
+      for (const id of messageIds) {
+        await deleteMessageForMe(chatId, id, currentUser.uid).catch(() => {});
+      }
+    } else {
+      setMessages(prev => prev.map(m => {
+        if (messageIds.includes(m.id) && (m.senderId === currentUser.uid || m.senderId === 'current_user')) {
+          return { ...m, isDeletedForEveryone: true, message: 'This message was deleted.', imageUrl: '' };
+        }
+        return m;
+      }));
+      for (const id of messageIds) {
+        await deleteMessageForEveryone(chatId, id, currentUser.uid).catch(() => {});
+      }
+    }
+  };
+
+  const toggleStar = async (messageId) => {
+    if (!chatId || !messageId || !currentUser?.uid) return false;
+    setMessages(prev => prev.map(m => {
+      if (m.id === messageId) {
+        const currentStars = m.starredBy || {};
+        const isStarred = !currentStars[currentUser.uid];
+        return { ...m, starredBy: { ...currentStars, [currentUser.uid]: isStarred } };
+      }
+      return m;
+    }));
+    try {
+      return await toggleStarMessage(chatId, messageId, currentUser.uid);
+    } catch (err) {
+      console.warn('Failed to star message:', err);
+      return false;
+    }
+  };
+
+  const reactToMessageById = async (messageId, emoji) => {
+    if (!chatId || !messageId || !currentUser?.uid) return;
+    try {
+      await reactToMessage(chatId, messageId, emoji, currentUser.uid);
+    } catch (err) {
+      console.warn('Failed to react to message:', err);
+    }
+  };
+
   return {
     messages,
     loading,
     sending,
     sendTextMessage,
     sendEmojiMessage,
-    sendImageAttachment
+    sendImageAttachment,
+    deleteMessageById,
+    deleteForMe,
+    deleteForEveryone,
+    deleteMultiple,
+    toggleStar,
+    reactToMessageById
   };
 };
 

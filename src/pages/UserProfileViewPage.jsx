@@ -1,13 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, MapPin, Heart, X, MessageCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  MapPin,
+  Heart,
+  Bookmark,
+  X,
+  MessageCircle,
+  ShieldAlert,
+  UserX,
+  MoreVertical
+} from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import MatchModal from '../components/MatchModal';
+import ConfirmModal from '../components/ConfirmModal';
+import ReportModal from '../components/ReportModal';
 import { getUserProfile } from '../services/userService';
 import { initialProfiles } from '../data/seedData';
 import { sendLike } from '../services/likeService';
 import { useAuth } from '../context/AuthContext';
 import { getDeterministicChatId } from '../services/chatService';
+import { recordProfileView } from '../services/visitorService';
+import { toggleFavorite, checkIsFavorite } from '../services/favoriteService';
+import { blockUser } from '../services/blockService';
 
 export const UserProfileViewPage = () => {
   const { userId } = useParams();
@@ -19,6 +35,14 @@ export const UserProfileViewPage = () => {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [matchData, setMatchData] = useState(null);
   const [showMatchModal, setShowMatchModal] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [savingFav, setSavingFav] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Safety modals
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -44,13 +68,45 @@ export const UserProfileViewPage = () => {
     fetchUser();
   }, [userId]);
 
+  // Record profile visitor on mount
+  useEffect(() => {
+    if (currentUser?.uid && userId && userId !== currentUser.uid) {
+      recordProfileView(userProfile || { uid: currentUser.uid, displayName: 'You' }, userId);
+    }
+  }, [currentUser?.uid, userId, userProfile]);
+
+  // Check initial favorite status
+  useEffect(() => {
+    if (currentUser?.uid && userId) {
+      checkIsFavorite(currentUser.uid, userId).then(setIsFavorite);
+    }
+  }, [currentUser?.uid, userId]);
+
+  const handleToggleFavorite = async () => {
+    if (!currentUser?.uid || !profile || savingFav) return;
+    setSavingFav(true);
+    try {
+      const newState = await toggleFavorite(currentUser.uid, profile);
+      setIsFavorite(newState);
+    } catch (e) {
+      console.warn('Favorite toggle error:', e);
+    } finally {
+      setSavingFav(false);
+    }
+  };
+
   const handleLike = async () => {
     if (!profile) return;
     try {
-      const res = await sendLike(userProfile || { uid: currentUser?.uid, displayName: 'You' }, profile);
+      const myUser = userProfile || {
+        uid: currentUser?.uid || 'me',
+        displayName: userProfile?.displayName || currentUser?.displayName || 'You',
+        profilePhoto: userProfile?.profilePhoto || '/assets/logo-heart.jpg'
+      };
+      const res = await sendLike(myUser, profile);
       if (res && res.isMatch) {
         setMatchData({
-          user1: userProfile || { displayName: 'You', profilePhoto: '/assets/logo-heart.jpg' },
+          user1: myUser,
           user2: profile
         });
         setShowMatchModal(true);
@@ -69,6 +125,20 @@ export const UserProfileViewPage = () => {
     navigate(`/chat/${chatId}`);
   };
 
+  const handleConfirmBlock = async () => {
+    if (!currentUser?.uid || !userId) return;
+    setActionLoading(true);
+    try {
+      await blockUser(currentUser.uid, userId, profile);
+      setShowBlockModal(false);
+      navigate('/discover');
+    } catch (err) {
+      console.error('Error blocking user:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="fullscreen-loading">
@@ -83,13 +153,15 @@ export const UserProfileViewPage = () => {
     ? profile.photos
     : [profile.profilePhoto || profile.image || '/assets/logo-heart.jpg'];
 
+  const displayName = profile.displayName || profile.name || 'Member';
+
   return (
-    <div className="user-view-profile-page">
+    <div className="user-view-profile-page" onClick={() => setShowMenu(false)}>
       {/* Media carousel header */}
       <div className="user-view-media-header">
         <img
           src={photos[activePhotoIdx]}
-          alt={profile.displayName || profile.name}
+          alt={displayName}
           className="user-view-hero-image"
         />
 
@@ -101,6 +173,55 @@ export const UserProfileViewPage = () => {
         >
           <ArrowLeft size={22} />
         </button>
+
+        {/* Top-Right Actions */}
+        <div className="user-view-top-actions" onClick={e => e.stopPropagation()}>
+          <button
+            type="button"
+            className={`user-view-fav-fab ${isFavorite ? 'active-fav' : ''}`}
+            onClick={handleToggleFavorite}
+            aria-label={isFavorite ? 'Remove from Saved' : 'Save Profile'}
+            title={isFavorite ? 'Saved Profile' : 'Save Profile'}
+          >
+            <Bookmark size={20} fill={isFavorite ? '#ED417A' : 'none'} color={isFavorite ? '#ED417A' : '#ffffff'} />
+          </button>
+
+          <div className="user-view-menu-wrap">
+            <button
+              type="button"
+              className="user-view-more-fab"
+              onClick={() => setShowMenu(prev => !prev)}
+              aria-label="More options"
+            >
+              <MoreVertical size={20} color="#ffffff" />
+            </button>
+
+            {showMenu && (
+              <div className="user-view-dropdown animate-fade-in">
+                <button
+                  type="button"
+                  className="dropdown-action-item text-danger"
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowBlockModal(true);
+                  }}
+                >
+                  <UserX size={16} /> Block User
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-action-item text-danger"
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowReportModal(true);
+                  }}
+                >
+                  <ShieldAlert size={16} /> Report User
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Photo indicators */}
         {photos.length > 1 && (
@@ -121,11 +242,12 @@ export const UserProfileViewPage = () => {
         <div className="user-view-title-row">
           <div>
             <h1 className="user-view-name">
-              {profile.displayName || profile.name}, <span className="age-span">{profile.age}</span>
+              {displayName}, <span className="age-span">{profile.age}</span>
             </h1>
             <p className="user-view-location">
               <MapPin size={15} /> {profile.city}{profile.country ? `, ${profile.country}` : ''}
               {profile.distance && <span className="distance-bullet"> • {profile.distance}</span>}
+              {profile.isOnline && <span className="online-badge-text"> • Active now</span>}
             </p>
           </div>
           {profile.isVerified && (
@@ -133,6 +255,18 @@ export const UserProfileViewPage = () => {
               <Check size={14} strokeWidth={3} /> Verified
             </span>
           )}
+        </div>
+
+        {/* Save profile badge pill */}
+        <div className="user-view-save-pill-row">
+          <button
+            type="button"
+            className={`save-profile-pill-btn ${isFavorite ? 'saved' : ''}`}
+            onClick={handleToggleFavorite}
+          >
+            <Bookmark size={15} fill={isFavorite ? '#ED417A' : 'none'} color="#ED417A" />
+            <span>{isFavorite ? '❤️ Saved in Favorites' : '❤️ Save Profile'}</span>
+          </button>
         </div>
 
         {/* About */}
@@ -195,6 +329,27 @@ export const UserProfileViewPage = () => {
         onClose={() => setShowMatchModal(false)}
         user1={matchData?.user1}
         user2={matchData?.user2}
+      />
+
+      {/* Block Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showBlockModal}
+        title={`Block ${displayName}?`}
+        message={`${displayName} will no longer appear on your Discover, Likes, or Matches, and will not be able to message you.`}
+        confirmText="Block User"
+        cancelText="Cancel"
+        isDestructive={true}
+        loading={actionLoading}
+        onConfirm={handleConfirmBlock}
+        onCancel={() => setShowBlockModal(false)}
+      />
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reporterId={currentUser?.uid}
+        reportedUser={profile || { uid: userId }}
       />
     </div>
   );

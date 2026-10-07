@@ -11,16 +11,37 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 
-export const createNotification = async ({ userId, type, title, message, senderId }) => {
+export const createNotification = async ({ userId, type, title, message, senderId, targetUrl }) => {
   if (!userId) return;
   try {
     const notifsRef = collection(db, 'notifications');
+
+    // Prevent duplicate unread notifications for the same event/sender
+    if (senderId && type) {
+      try {
+        const q = query(
+          notifsRef,
+          where('userId', '==', userId),
+          where('senderId', '==', senderId),
+          where('type', '==', type),
+          where('isRead', '==', false)
+        );
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+          return existing.docs[0].ref;
+        }
+      } catch (err) {
+        // Index or query warning, proceed to create
+      }
+    }
+
     return await addDoc(notifsRef, {
       userId,
       type: type || 'system',
       title: title || 'Notification',
       message: message || '',
       senderId: senderId || '',
+      targetUrl: targetUrl || '',
       isRead: false,
       createdAt: serverTimestamp()
     });

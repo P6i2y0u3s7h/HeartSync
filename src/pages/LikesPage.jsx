@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import ProfileGrid from '../components/ProfileGrid';
-import MatchModal from '../components/MatchModal';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HeartBackground from '../components/HeartBackground';
@@ -12,19 +11,23 @@ import { useAuth } from '../context/AuthContext';
 
 export const LikesPage = () => {
   const navigate = useNavigate();
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { peopleWhoLikedMe, loading, likeBack, passIncoming } = useLikes();
-  const [matchData, setMatchData] = useState(null);
-  const [showMatchModal, setShowMatchModal] = useState(false);
 
   const handleLikeUser = async (targetUser) => {
     const result = await likeBack(targetUser);
     if (result && result.isMatch) {
-      setMatchData({
-        user1: userProfile || { displayName: 'You', profilePhoto: '/assets/logo-heart.jpg' },
-        user2: targetUser
+      navigate('/match', {
+        state: {
+          user1: userProfile || {
+            uid: currentUser?.uid || 'me',
+            displayName: userProfile?.displayName || currentUser?.displayName || 'You',
+            profilePhoto: userProfile?.profilePhoto || '/assets/profile-user.jpg'
+          },
+          user2: targetUser,
+          matchData: result.matchData
+        }
       });
-      setShowMatchModal(true);
     }
   };
 
@@ -72,13 +75,6 @@ export const LikesPage = () => {
           />
         )}
       </main>
-
-      <MatchModal
-        isOpen={showMatchModal}
-        onClose={() => setShowMatchModal(false)}
-        user1={matchData?.user1}
-        user2={matchData?.user2}
-      />
 
       <BottomNavigation />
     </div>

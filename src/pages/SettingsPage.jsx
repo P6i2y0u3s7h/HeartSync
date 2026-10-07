@@ -6,7 +6,8 @@ import PrimaryButton from '../components/PrimaryButton';
 import HeartBackground from '../components/HeartBackground';
 import { useAuth } from '../context/AuthContext';
 import { getUserPreferences, updateUserPreferences } from '../services/userService';
-import { Shield, Bell, Lock, User, LogOut, Check } from 'lucide-react';
+import { subscribeToBlockedUsers, unblockUser } from '../services/blockService';
+import { Shield, Bell, Lock, User, LogOut, Check, UserX, Unlock } from 'lucide-react';
 
 export const SettingsPage = () => {
   const { currentUser, userProfile, logout } = useAuth();
@@ -20,6 +21,8 @@ export const SettingsPage = () => {
     relationshipIntentions: 'Serious Relationship',
     notificationsEnabled: true
   });
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [unblockingId, setUnblockingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -28,6 +31,12 @@ export const SettingsPage = () => {
       getUserPreferences(currentUser.uid).then((prefs) => {
         if (prefs) setPreferences(prev => ({ ...prev, ...prefs }));
       });
+
+      const unsubscribe = subscribeToBlockedUsers(currentUser.uid, (list) => {
+        setBlockedUsers(list);
+      });
+
+      return () => unsubscribe();
     }
   }, [currentUser]);
 
@@ -44,6 +53,20 @@ export const SettingsPage = () => {
       console.error('Error updating preferences:', e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUnblock = async (blockedId) => {
+    if (!currentUser?.uid || !blockedId) return;
+    setUnblockingId(blockedId);
+    try {
+      await unblockUser(currentUser.uid, blockedId);
+      setSuccessMsg('User unblocked successfully.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      console.error('Error unblocking user:', err);
+    } finally {
+      setUnblockingId(null);
     }
   };
 
@@ -123,6 +146,50 @@ export const SettingsPage = () => {
                 <option value="New Friends">New Friends</option>
                 <option value="Marriage">Marriage</option>
               </select>
+            </div>
+          </div>
+
+          {/* Privacy & Safety - Blocked Users */}
+          <div className="settings-group-card">
+            <div className="settings-group-header-row">
+              <h3 className="settings-group-title">Privacy & Safety</h3>
+              <UserX size={18} color="#ED417A" />
+            </div>
+
+            <div className="blocked-users-section">
+              <h4 className="blocked-users-subtitle">Blocked Accounts ({blockedUsers.length})</h4>
+              {blockedUsers.length > 0 ? (
+                <div className="blocked-users-list">
+                  {blockedUsers.map((b) => {
+                    const info = b.blockedUser || {};
+                    const bName = info.displayName || 'Member';
+                    const bPhoto = info.profilePhoto || '/assets/logo-heart.jpg';
+                    const targetId = b.blockedId;
+
+                    return (
+                      <div key={b.id || targetId} className="blocked-user-row">
+                        <div className="blocked-user-left">
+                          <img src={bPhoto} alt={bName} className="blocked-user-avatar" />
+                          <span className="blocked-user-name">{bName}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-unblock-user"
+                          disabled={unblockingId === targetId}
+                          onClick={() => handleUnblock(targetId)}
+                        >
+                          <Unlock size={14} />
+                          {unblockingId === targetId ? 'Unblocking...' : 'Unblock'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="blocked-users-empty-text">
+                  You have not blocked any accounts. Blocked users will not be able to discover or contact you.
+                </p>
+              )}
             </div>
           </div>
 

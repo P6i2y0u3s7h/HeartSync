@@ -4,58 +4,48 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 
-export const Header = ({ onOpenFilter, showFilter, showNotifications = true, title }) => {
+export const Header = ({ onOpenFilter, showFilter, showNotifications = true }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userProfile } = useAuth();
   const { unreadCount } = useNotifications();
 
-  // Dynamic route-based title resolver (explicitly no top header title on /likes and /discover)
-  const getDynamicTitle = () => {
-    const path = location.pathname;
-    if (path.startsWith('/likes') || path.startsWith('/discover')) {
-      return null;
-    }
-    if (title !== undefined && title !== null) return title;
-    if (path.startsWith('/profile') && !path.includes('/profile/')) return 'My Profile';
-    if (path.startsWith('/matches')) return 'Matches';
-    if (path.startsWith('/people-i-like')) return 'People Whom I Like';
-    if (path.startsWith('/notifications')) return 'Notifications';
-    if (path.startsWith('/settings')) return 'Settings';
-    return null;
-  };
-
-  const activeTitle = getDynamicTitle();
-
   const isDiscover = location.pathname.startsWith('/discover');
   const shouldShowFilter = showFilter !== undefined ? showFilter : isDiscover;
 
   return (
-    <header className={`app-header-hs ${activeTitle ? 'has-center-title' : ''}`}>
-      <div className="header-left" onClick={() => navigate('/home')}>
+    <header className="app-header-hs">
+      {/* LEFT: HeartSync Brand & Logo */}
+      <div
+        className="header-left"
+        onClick={() => navigate('/home')}
+        title="HeartSync Home"
+        aria-label="HeartSync Home"
+        role="button"
+        tabIndex={0}
+      >
         <div className="header-logo-container">
           <img src="/assets/logo-heart.jpg" alt="HeartSync" className="header-logo-img" />
           <span className="brand-wordmark">HeartSync</span>
         </div>
       </div>
 
-      {activeTitle && (
-        <h1 className="header-center-title">{activeTitle}</h1>
-      )}
-
+      {/* RIGHT: Header Actions (Filter, Notifications, Profile Avatar) */}
       <div className="header-right-actions">
+        {/* Discovery Filter Icon (when on discover / filter enabled) */}
         {shouldShowFilter && (
           <button
             id="btn-header-filter"
             className="icon-action-btn"
             onClick={onOpenFilter}
-            aria-label="Filter discovery"
+            aria-label="Filter"
             title="Filter"
           >
             <SlidersHorizontal size={20} />
           </button>
         )}
 
+        {/* Notifications Bell Icon with Unread Badge */}
         {showNotifications && (
           <button
             id="btn-header-notifs"
@@ -69,15 +59,24 @@ export const Header = ({ onOpenFilter, showFilter, showNotifications = true, tit
           </button>
         )}
 
+        {/* My Profile Icon / Avatar */}
         <div
           id="header-user-avatar"
           className="header-avatar-circle"
           onClick={() => navigate('/profile')}
+          aria-label="My Profile"
           title="My Profile"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              navigate('/profile');
+            }
+          }}
         >
           <img
             src={userProfile?.profilePhoto || '/assets/logo-heart.jpg'}
-            alt={userProfile?.displayName || 'User'}
+            alt={userProfile?.displayName || 'User Profile'}
             className="header-avatar-img"
           />
         </div>

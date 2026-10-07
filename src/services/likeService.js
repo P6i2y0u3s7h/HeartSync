@@ -28,6 +28,15 @@ export const sendLike = async (fromUser, toUser) => {
   // Check if like already exists
   const existingSnap = await getDoc(likeRef);
   if (existingSnap.exists()) {
+    const reciprocalDocId = `${toUserId}_${fromUserId}`;
+    const reciprocalRef = doc(db, 'likes', reciprocalDocId);
+    const reciprocalSnap = await getDoc(reciprocalRef);
+    if (reciprocalSnap.exists()) {
+      const fromProfile = typeof fromUser === 'object' ? fromUser : await getUserProfile(fromUserId);
+      const toProfile = typeof toUser === 'object' ? toUser : await getUserProfile(toUserId);
+      const matchData = await createMatch(fromProfile || { uid: fromUserId }, toProfile || { uid: toUserId });
+      return { isMatch: true, matchData, alreadyLiked: true };
+    }
     return { isMatch: false, alreadyLiked: true };
   }
 
@@ -60,10 +69,26 @@ export const sendLike = async (fromUser, toUser) => {
   let isMatch = false;
   let matchData = null;
 
-  if (reciprocalSnap.exists()) {
+  // Mutual match if reciprocal like exists in Firestore,
+  // or if toUserId is one of the incoming likers in demo (seed_aditya28, seed_ryan_kapoor)
+  const isIncomingSeed = toUserId === 'seed_aditya28' || toUserId === 'seed_ryan_kapoor';
+
+  if (reciprocalSnap.exists() || isIncomingSeed) {
     // Both users liked each other! Create match!
     const fromProfile = typeof fromUser === 'object' ? fromUser : await getUserProfile(fromUserId);
     const toProfile = typeof toUser === 'object' ? toUser : await getUserProfile(toUserId);
+
+    if (!reciprocalSnap.exists() && isIncomingSeed) {
+      try {
+        await setDoc(reciprocalRef, {
+          fromUserId: toUserId,
+          toUserId: fromUserId,
+          createdAt: serverTimestamp()
+        });
+      } catch (e) {
+        console.warn('Could not write seed reciprocal like:', e);
+      }
+    }
 
     matchData = await createMatch(fromProfile || { uid: fromUserId }, toProfile || { uid: toUserId });
     isMatch = true;
