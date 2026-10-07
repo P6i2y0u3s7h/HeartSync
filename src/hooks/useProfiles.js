@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getDiscoverProfiles } from '../services/userService';
-import { sendLike } from '../services/likeService';
+import { sendLike, passUser, undoLike, undoPass } from '../services/likeService';
 
 export const useProfiles = (initialFilters = {}) => {
   const { currentUser, userProfile } = useAuth();
   const [profiles, setProfiles] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState(initialFilters);
   const [matchData, setMatchData] = useState(null);
@@ -17,26 +16,19 @@ export const useProfiles = (initialFilters = {}) => {
     try {
       const data = await getDiscoverProfiles(currentUser?.uid || 'guest', filters);
       setProfiles(data);
-      setCurrentIndex(0);
     } catch (err) {
       console.error('Error fetching discovery profiles:', err);
     } finally {
       setLoading(false);
     }
-  }, [currentUser, filters]);
+  }, [currentUser?.uid, filters]);
 
   useEffect(() => {
     fetchProfiles();
   }, [fetchProfiles]);
 
-  const currentProfile = profiles[currentIndex] || null;
-
-  const handleLike = async (profile) => {
-    const target = profile || currentProfile;
-    if (!target) return null;
-
-    // Advance card
-    setCurrentIndex(prev => prev + 1);
+  const handleLike = async (profile, isSuperLike = false) => {
+    if (!profile) return null;
 
     try {
       const myUser = userProfile || {
@@ -44,17 +36,17 @@ export const useProfiles = (initialFilters = {}) => {
         displayName: userProfile?.displayName || currentUser?.displayName || 'You',
         profilePhoto: userProfile?.profilePhoto || '/assets/logo-heart.jpg'
       };
-      const result = await sendLike(myUser, target);
+
+      const result = await sendLike(myUser, profile, isSuperLike);
+
       if (result && result.isMatch) {
-        const u1 = myUser;
-        const u2 = target;
         setMatchData({
-          user1: u1,
-          user2: u2,
+          user1: myUser,
+          user2: profile,
           matchData: result.matchData
         });
         setShowMatchModal(true);
-        return { ...result, user1: u1, user2: u2 };
+        return { ...result, user1: myUser, user2: profile };
       }
       return result;
     } catch (err) {
@@ -63,8 +55,29 @@ export const useProfiles = (initialFilters = {}) => {
     }
   };
 
-  const handlePass = () => {
-    setCurrentIndex(prev => prev + 1);
+  const handlePass = async (profile) => {
+    if (!profile || !currentUser?.uid) return;
+    try {
+      const targetUid = profile.uid || profile.id;
+      await passUser(currentUser.uid, targetUid);
+    } catch (err) {
+      console.error('Error passing profile:', err);
+    }
+  };
+
+  const handleUndo = async (type, profile) => {
+    if (!profile || !currentUser?.uid) return;
+    const targetUid = profile.uid || profile.id;
+
+    try {
+      if (type === 'like' || type === 'superlike') {
+        await undoLike(currentUser.uid, targetUid);
+      } else if (type === 'pass') {
+        await undoPass(currentUser.uid, targetUid);
+      }
+    } catch (err) {
+      console.error('Error undoing swipe action:', err);
+    }
   };
 
   const closeMatchModal = () => {
@@ -74,14 +87,13 @@ export const useProfiles = (initialFilters = {}) => {
 
   return {
     profiles,
-    currentProfile,
-    currentIndex,
     loading,
     filters,
     setFilters,
     refreshProfiles: fetchProfiles,
     handleLike,
     handlePass,
+    handleUndo,
     matchData,
     showMatchModal,
     closeMatchModal

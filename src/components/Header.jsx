@@ -1,10 +1,10 @@
 import React from 'react';
-import { SlidersHorizontal, Bell } from 'lucide-react';
+import { SlidersHorizontal, Bell, PlusSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useNotifications';
 
-export const Header = ({ onOpenFilter, showFilter, showNotifications = true }) => {
+export const Header = ({ onOpenFilter, showFilter, showNotifications = true, onOpenCreatePost }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userProfile } = useAuth();
@@ -30,8 +30,21 @@ export const Header = ({ onOpenFilter, showFilter, showNotifications = true }) =
         </div>
       </div>
 
-      {/* RIGHT: Header Actions (Filter, Notifications, Profile Avatar) */}
+      {/* RIGHT: Header Actions (Create Post, Filter, Notifications, Profile Avatar) */}
       <div className="header-right-actions">
+        {/* Create Post Icon */}
+        {onOpenCreatePost && (
+          <button
+            id="btn-header-create-post"
+            className="icon-action-btn"
+            onClick={onOpenCreatePost}
+            aria-label="Create Post"
+            title="Create Post"
+          >
+            <PlusSquare size={21} color="#C2185B" />
+          </button>
+        )}
+
         {/* Discovery Filter Icon (when on discover / filter enabled) */}
         {shouldShowFilter && (
           <button

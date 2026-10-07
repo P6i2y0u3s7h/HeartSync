@@ -1,107 +1,161 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Header from '../components/Header';
 import BottomNavigation from '../components/BottomNavigation';
 import StoryAvatar from '../components/StoryAvatar';
-import ProfileCard from '../components/ProfileCard';
-import FilterModal from '../components/FilterModal';
-import MatchModal from '../components/MatchModal';
+import AddStoryModal from '../components/AddStoryModal';
+import StoryViewer from '../components/StoryViewer';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HeartBackground from '../components/HeartBackground';
-import { useProfiles } from '../hooks/useProfiles';
-import { useChats } from '../hooks/useChats';
+import PostCard from '../components/PostCard';
+import CreatePostModal from '../components/CreatePostModal';
+import { useAuth } from '../context/AuthContext';
+import { useStories } from '../hooks/useStories';
+import { useFeedPosts } from '../hooks/usePosts';
 import { useNavigate } from 'react-router-dom';
 
 export const HomePage = () => {
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const {
-    profiles,
-    currentProfile,
-    currentIndex,
-    loading,
-    filters,
-    setFilters,
-    handleLike,
-    handlePass,
-    matchData,
-    showMatchModal,
-    closeMatchModal,
-    refreshProfiles
-  } = useProfiles();
+  const [addStoryModalOpen, setAddStoryModalOpen] = useState(false);
+  const [createPostModalOpen, setCreatePostModalOpen] = useState(false);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [selectedStoryUserIndex, setSelectedStoryUserIndex] = useState(0);
 
-  const { activeUsers } = useChats();
+  const { currentUser, userProfile } = useAuth();
+  // Stories (separate from Now Active)
+  const { myStories, otherUsersWithStories, loading: storiesLoading } = useStories(currentUser);
+
+  // Community Photo & Video Feed
+  const {
+    posts,
+    loading: postsLoading,
+    handleCreatePost,
+    handleToggleLike,
+    handleToggleSave,
+    handleDeletePost,
+    handleEditCaption
+  } = useFeedPosts(currentUser);
+
   const navigate = useNavigate();
 
-  const handleApplyFilters = (newFilters) => {
-    setFilters(newFilters);
-  };
-
-  const handleSwipeLike = async (profile) => {
-    const res = await handleLike(profile);
-    if (res && res.isMatch) {
-      navigate('/match', {
-        state: {
-          user1: res.user1,
-          user2: res.user2,
-          matchData: res.matchData
-        }
+  // Combine own stories and others into unified list for sequential viewing
+  const allStoryGroups = useMemo(() => {
+    const groups = [];
+    if (myStories && myStories.length > 0) {
+      groups.push({
+        userId: currentUser?.uid,
+        userDisplayName: userProfile?.firstName || userProfile?.displayName || 'My Story',
+        userProfilePhoto: userProfile?.profilePhoto || currentUser?.photoURL,
+        stories: myStories
       });
     }
+    if (otherUsersWithStories && otherUsersWithStories.length > 0) {
+      groups.push(...otherUsersWithStories);
+    }
+    return groups;
+  }, [myStories, otherUsersWithStories, currentUser, userProfile]);
+
+  const handleOpenMyStory = () => {
+    if (myStories && myStories.length > 0) {
+      setSelectedStoryUserIndex(0);
+      setStoryViewerOpen(true);
+    } else {
+      setAddStoryModalOpen(true);
+    }
+  };
+
+  const handleOpenOtherStory = (userGroup, otherIdx) => {
+    const targetIndex = myStories && myStories.length > 0 ? otherIdx + 1 : otherIdx;
+    setSelectedStoryUserIndex(targetIndex);
+    setStoryViewerOpen(true);
   };
 
   return (
     <div className="app-page-wrapper">
       <HeartBackground />
-      <Header onOpenFilter={() => setFilterModalOpen(true)} />
+
+      {/* Header: HeartSync logo on left, Notifications + Profile avatar on right (NO + button) */}
+      <Header />
 
       <main className="main-content-scrollable home-content-layout">
-        {/* Story avatars row */}
-        <section className="stories-section" aria-label="Stories & Active Users">
+        {/* 1. Stories Section: My Story + Other Users' Active Stories */}
+        <section className="stories-section" aria-label="Stories">
           <div className="stories-horizontal-scroll">
-            <StoryAvatar isAddStory={true} onAddStory={() => navigate('/profile')} />
-            {activeUsers.map((user) => (
-              <StoryAvatar key={user.uid || user.id} profile={user} />
+            <StoryAvatar
+              isAddStory={true}
+              hasStory={myStories && myStories.length > 0}
+              userProfile={userProfile}
+              onAddStory={() => setAddStoryModalOpen(true)}
+              onViewStory={handleOpenMyStory}
+            />
+
+            {otherUsersWithStories.map((group, idx) => (
+              <StoryAvatar
+                key={group.userId}
+                storyUser={group}
+                hasStory={true}
+                onViewStory={() => handleOpenOtherStory(group, idx)}
+              />
             ))}
           </div>
         </section>
 
-        {/* Swipe Card Deck */}
-        <section className="card-deck-section">
-          {loading ? (
-            <div className="card-loading-state">
-              <LoadingSpinner text="Finding people who match your vibe..." />
+        {/* 2. Instagram-Style Photo & Video Feed */}
+        <section className="home-photo-feed-section" aria-label="Social Feed">
+          {postsLoading ? (
+            <div className="feed-loading-container">
+              <LoadingSpinner text="Loading feed..." />
             </div>
-          ) : currentProfile ? (
-            <div className="swipe-card-stage animate-fade-in">
-              <ProfileCard
-                profile={currentProfile}
-                onLike={() => handleSwipeLike(currentProfile)}
-                onPass={() => handlePass(currentProfile)}
-                onInterested={() => handleSwipeLike(currentProfile)}
-                onCardClick={() => navigate(`/profile/${currentProfile.uid || currentProfile.id}`)}
-              />
+          ) : posts.length > 0 ? (
+            <div className="feed-stream-container">
+              {posts.map((post) => (
+                <PostCard
+                  key={post.id || post.postId}
+                  post={post}
+                  currentUser={currentUser}
+                  userProfile={userProfile}
+                  onToggleLike={handleToggleLike}
+                  onToggleSave={handleToggleSave}
+                  onDeletePost={handleDeletePost}
+                  onEditCaption={handleEditCaption}
+                />
+              ))}
             </div>
           ) : (
             <EmptyState
-              type="search"
-              title="You've seen everyone nearby!"
-              message="Adjust your age, distance, or city filters to discover more genuine matches."
-              actionText="Reset Filters"
-              onAction={() => {
-                setFilters({ preferredGender: 'All', minAge: 18, maxAge: 50 });
-                refreshProfiles();
-              }}
+              type="feed"
+              title="No posts yet!"
+              message="When users share photos and videos, they will appear here in your feed."
+              actionText="Create a Post"
+              onAction={() => setCreatePostModalOpen(true)}
             />
           )}
         </section>
       </main>
 
       {/* Modals */}
-      <FilterModal
-        isOpen={filterModalOpen}
-        onClose={() => setFilterModalOpen(false)}
-        filters={filters}
-        onApply={handleApplyFilters}
+      <CreatePostModal
+        isOpen={createPostModalOpen}
+        onClose={() => setCreatePostModalOpen(false)}
+        currentUser={currentUser}
+        userProfile={userProfile}
+        onCreatePost={handleCreatePost}
+      />
+
+      <AddStoryModal
+        isOpen={addStoryModalOpen}
+        onClose={() => setAddStoryModalOpen(false)}
+        currentUser={currentUser}
+        userProfile={userProfile}
+      />
+
+      <StoryViewer
+        isOpen={storyViewerOpen}
+        onClose={() => setStoryViewerOpen(false)}
+        initialUserIndex={selectedStoryUserIndex}
+        storyUsers={allStoryGroups}
+        currentUser={currentUser}
+        userProfile={userProfile}
+        onOpenAddStory={() => setAddStoryModalOpen(true)}
       />
 
       <BottomNavigation />

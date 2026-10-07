@@ -3,17 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Search, SlidersHorizontal } from 'lucide-react';
 import BottomNavigation from '../components/BottomNavigation';
 import ChatListItem from '../components/ChatListItem';
-import StoryAvatar from '../components/StoryAvatar';
+import NowActiveRow from '../components/NowActiveRow';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HeartBackground from '../components/HeartBackground';
 import FilterModal from '../components/FilterModal';
 import { useChats } from '../hooks/useChats';
 import { useAuth } from '../context/AuthContext';
+import { useOnlineUsers } from '../hooks/useOnlineUsers';
 
 export const ChatsPage = () => {
-  const { chats, activeUsers, loading } = useChats();
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
+  const { chats, loading } = useChats();
+  const { onlineUsers, loading: onlineLoading } = useOnlineUsers(currentUser);
   const navigate = useNavigate();
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -93,31 +95,12 @@ export const ChatsPage = () => {
 
       <main className="main-content-scrollable chats-page-layout">
         {/* 2. "NOW ACTIVE" SECTION */}
-        <section className="now-active-section" aria-label="Now active users">
-          <div className="now-active-header">
-            <h3 className="subheading-active">Now Active</h3>
-            <button
-              id="btn-now-active-see-all"
-              type="button"
-              className="now-active-see-all"
-              onClick={() => navigate('/discover')}
-            >
-              See all
-            </button>
-          </div>
-
-          <div className="now-active-scroll">
-            {activeUsers.map((user) => (
-              <StoryAvatar
-                key={user.uid || user.id}
-                profile={user}
-                onClick={(p) => {
-                  navigate(`/profile/${p.uid || p.id}`);
-                }}
-              />
-            ))}
-          </div>
-        </section>
+        <NowActiveRow
+          onlineUsers={onlineUsers}
+          loading={onlineLoading}
+          showSeeAll={true}
+          onSeeAll={() => navigate('/active-users')}
+        />
 
         {/* 3. CHAT LIST */}
         <section className="chat-threads-section" aria-label="Recent Conversations">

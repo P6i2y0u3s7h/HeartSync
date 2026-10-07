@@ -18,6 +18,7 @@ import UserProfileViewPage from './pages/UserProfileViewPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import FavoritesPage from './pages/FavoritesPage';
+import ActiveUsersPage from './pages/ActiveUsersPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 export const App = () => {
@@ -94,6 +95,22 @@ export const App = () => {
         element={
           <ProtectedRoute>
             <ChatsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/active-users"
+        element={
+          <ProtectedRoute>
+            <ActiveUsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/now-active"
+        element={
+          <ProtectedRoute>
+            <ActiveUsersPage />
           </ProtectedRoute>
         }
       />

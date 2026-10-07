@@ -14,7 +14,7 @@ import { createMatch } from './matchService';
 import { createNotification } from './notificationService';
 import { getUserProfile } from './userService';
 
-export const sendLike = async (fromUser, toUser) => {
+export const sendLike = async (fromUser, toUser, isSuperLike = false) => {
   const fromUserId = typeof fromUser === 'string' ? fromUser : (fromUser.uid || fromUser.id);
   const toUserId = typeof toUser === 'string' ? toUser : (toUser.uid || toUser.id);
 
@@ -44,6 +44,7 @@ export const sendLike = async (fromUser, toUser) => {
   await setDoc(likeRef, {
     fromUserId,
     toUserId,
+    isSuperLike: Boolean(isSuperLike),
     createdAt: serverTimestamp()
   });
 
@@ -52,9 +53,9 @@ export const sendLike = async (fromUser, toUser) => {
     const senderProfile = typeof fromUser === 'object' && fromUser.displayName ? fromUser : await getUserProfile(fromUserId);
     await createNotification({
       userId: toUserId,
-      type: 'like',
-      title: 'New Like! ❤️',
-      message: `${senderProfile?.displayName || 'Someone'} liked your profile!`,
+      type: isSuperLike ? 'superlike' : 'like',
+      title: isSuperLike ? 'Super Like! ⭐' : 'New Like! ❤️',
+      message: `${senderProfile?.displayName || 'Someone'} ${isSuperLike ? 'super-liked' : 'liked'} your profile!`,
       senderId: fromUserId
     });
   } catch (e) {
@@ -117,6 +118,10 @@ export const sendLike = async (fromUser, toUser) => {
   return { isMatch, matchData, alreadyLiked: false };
 };
 
+export const sendSuperLike = async (fromUser, toUser) => {
+  return sendLike(fromUser, toUser, true);
+};
+
 export const getLikesGiven = async (currentUid) => {
   try {
     const likesRef = collection(db, 'likes');
@@ -145,7 +150,72 @@ export const getLikesReceived = async (currentUid) => {
   }
 };
 
+/**
+ * Record a user pass (Swipe Left)
+ */
 export const passUser = async (fromUserId, toUserId) => {
-  // Pass action can optionally record a pass or simply be client-side swipe pass
-  return { passed: true };
+  if (!fromUserId || !toUserId || fromUserId === toUserId) {
+    return { passed: false };
+  }
+  try {
+    const passDocId = `${fromUserId}_${toUserId}`;
+    const passRef = doc(db, 'passes', passDocId);
+    await setDoc(passRef, {
+      fromUserId,
+      toUserId,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    return { passed: true };
+  } catch (err) {
+    console.warn('Error recording pass to Firestore:', err);
+    return { passed: true };
+  }
+};
+
+/**
+ * Retrieve all IDs of users passed by current user
+ */
+export const getPassesGiven = async (currentUid) => {
+  if (!currentUid) return [];
+  try {
+    const passesRef = collection(db, 'passes');
+    const q = query(passesRef, where('fromUserId', '==', currentUid));
+    const snap = await getDocs(q);
+    const passedIds = [];
+    snap.forEach(d => passedIds.push(d.data().toUserId));
+    return passedIds;
+  } catch (err) {
+    console.warn('Error fetching passes from Firestore:', err);
+    return [];
+  }
+};
+
+/**
+ * Undo / Revert a previous pass
+ */
+export const undoPass = async (fromUserId, toUserId) => {
+  if (!fromUserId || !toUserId) return;
+  try {
+    const passDocId = `${fromUserId}_${toUserId}`;
+    await deleteDoc(doc(db, 'passes', passDocId)).catch(() => {});
+  } catch (err) {
+    console.warn('Error reverting pass:', err);
+  }
+};
+
+/**
+ * Undo / Revert a previous like (and match if created)
+ */
+export const undoLike = async (fromUserId, toUserId) => {
+  if (!fromUserId || !toUserId) return;
+  try {
+    const likeDocId = `${fromUserId}_${toUserId}`;
+    await deleteDoc(doc(db, 'likes', likeDocId)).catch(() => {});
+
+    // If a mutual match was created, clean up match document as well
+    const matchId = [fromUserId, toUserId].sort().join('_');
+    await deleteDoc(doc(db, 'matches', matchId)).catch(() => {});
+  } catch (err) {
+    console.warn('Error reverting like:', err);
+  }
 };

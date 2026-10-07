@@ -13,6 +13,8 @@ import {
 } from 'firebase/firestore';
 import { initialProfiles } from '../data/seedData';
 import { getBlockedUserIds } from './blockService';
+import { getLikesGiven, getPassesGiven } from './likeService';
+import { getUserMatches } from './matchService';
 
 export const getUserProfile = async (uid) => {
   if (!uid) return null;
@@ -116,25 +118,55 @@ export const updateOnlinePresence = async (uid, isOnline = true) => {
 
 export const getDiscoverProfiles = async (currentUid, preferences = {}) => {
   try {
-    // Fetch blocked user IDs so blocked profiles never appear in Discover
-    let blockedIds = [];
+    const excludeSet = new Set();
     if (currentUid) {
+      excludeSet.add(currentUid);
+
+      // Exclude blocked users
       try {
-        blockedIds = await getBlockedUserIds(currentUid);
+        const blockedIds = await getBlockedUserIds(currentUid);
+        (blockedIds || []).forEach(id => excludeSet.add(id));
       } catch (err) {
         console.warn('Could not load blocked IDs:', err);
       }
+
+      // Exclude already liked users
+      try {
+        const likedIds = await getLikesGiven(currentUid);
+        (likedIds || []).forEach(id => excludeSet.add(id));
+      } catch (err) {
+        console.warn('Could not load liked IDs:', err);
+      }
+
+      // Exclude already passed users
+      try {
+        const passedIds = await getPassesGiven(currentUid);
+        (passedIds || []).forEach(id => excludeSet.add(id));
+      } catch (err) {
+        console.warn('Could not load passed IDs:', err);
+      }
+
+      // Exclude already matched users
+      try {
+        const matches = await getUserMatches(currentUid);
+        (matches || []).forEach(m => {
+          (m.userIds || []).forEach(uid => excludeSet.add(uid));
+        });
+      } catch (err) {
+        console.warn('Could not load matches for exclusion:', err);
+      }
     }
-    const blockedSet = new Set(blockedIds);
 
     let firestoreUsers = [];
     try {
       const usersRef = collection(db, 'users');
-      const q = query(usersRef, limit(30));
+      const q = query(usersRef, limit(40));
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((d) => {
-        if (d.id !== currentUid && !blockedSet.has(d.id)) {
-          firestoreUsers.push({ id: d.id, ...d.data() });
+        const data = d.data();
+        const uid = d.id;
+        if (!excludeSet.has(uid) && data.isDeleted !== true) {
+          firestoreUsers.push({ id: uid, uid, ...data });
         }
       });
     } catch (e) {
@@ -146,15 +178,16 @@ export const getDiscoverProfiles = async (currentUid, preferences = {}) => {
     const existingIds = new Set(combined.map(u => u.uid || u.id));
 
     initialProfiles.forEach(seed => {
-      if (seed.uid !== currentUid && !existingIds.has(seed.uid) && !blockedSet.has(seed.uid)) {
-        combined.push({ id: seed.uid, ...seed });
+      const seedId = seed.uid || seed.id;
+      if (!excludeSet.has(seedId) && !existingIds.has(seedId)) {
+        combined.push({ id: seedId, uid: seedId, ...seed });
       }
     });
 
     // Apply filtering
     return combined.filter(profile => {
-      // Exclude blocked
-      if (blockedSet.has(profile.uid || profile.id)) return false;
+      const pid = profile.uid || profile.id;
+      if (excludeSet.has(pid)) return false;
 
       // Gender filter
       if (preferences.preferredGender && preferences.preferredGender !== 'All') {

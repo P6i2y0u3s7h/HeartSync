@@ -7,7 +7,7 @@ import {
   logoutUser,
   resetPassword
 } from '../services/authService';
-import { getUserProfile, updateUserProfile } from '../services/userService';
+import { getUserProfile, updateUserProfile, updateOnlinePresence } from '../services/userService';
 
 export const AuthContext = createContext(null);
 
@@ -21,6 +21,8 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = subscribeToAuth(async (user) => {
       setCurrentUser(user);
       if (user) {
+        // Mark the user as online whenever auth resolves (login or page refresh)
+        updateOnlinePresence(user.uid, true).catch(() => {});
         try {
           const profile = await getUserProfile(user.uid);
           setUserProfile(profile || {

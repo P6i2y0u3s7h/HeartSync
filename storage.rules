@@ -25,5 +25,13 @@ service firebase.storage {
                    && request.resource.size < 10 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
+
+    // Sensitive Verification documents and selfies (never public, owner only)
+    match /verification/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+                   && request.resource.size < 15 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+    }
   }
 }

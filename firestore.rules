@@ -47,6 +47,14 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Passes Collection (Swipe Left)
+    match /passes/{passId} {
+      allow read: if isAuthenticated() && resource.data.fromUserId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.fromUserId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.fromUserId == request.auth.uid;
+      allow update: if false;
+    }
+
     // Matches Collection
     match /matches/{matchId} {
       allow read: if isAuthenticated() && request.auth.uid in resource.data.userIds;
@@ -120,10 +128,22 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // Verification Collection
-    match /verification/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+    // Verification Requests Collection (Photo Verification)
+    match /verificationRequests/{requestId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid && 
+        request.resource.data.status == 'pending';
+      allow update, delete: if false; // Only admin can approve or reject
+    }
+
+    // Identity Verification Requests Collection (ID + Photo Verification)
+    match /identityVerificationRequests/{requestId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid && 
+        request.resource.data.status == 'pending';
+      allow update, delete: if false; // Only admin can approve or reject
     }
   }
 }

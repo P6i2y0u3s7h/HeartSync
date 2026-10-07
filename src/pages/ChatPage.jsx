@@ -34,6 +34,7 @@ import DeleteMessageModal from '../components/DeleteMessageModal';
 import DisappearingMessagesModal, { DISAPPEARING_OPTIONS } from '../components/DisappearingMessagesModal';
 import UserListModal from '../components/UserListModal';
 import StarredMessagesModal from '../components/StarredMessagesModal';
+import CameraModal from '../components/CameraModal';
 import { useMessages } from '../hooks/useMessages';
 import { useAuth } from '../context/AuthContext';
 import { getUserProfile } from '../services/userService';
@@ -95,6 +96,7 @@ export const ChatPage = () => {
   const [showStarredModal, setShowStarredModal] = useState(false);
   const [deleteTargetMessage, setDeleteTargetMessage] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -1030,9 +1032,10 @@ export const ChatPage = () => {
         <div className="chat-input-media-group">
           <button
             type="button"
+            id="btn-chat-open-camera"
             className="chat-input-media-btn"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Take or attach photo"
+            onClick={() => setCameraModalOpen(true)}
+            aria-label="Take photo with camera"
             title="Camera"
           >
             <Camera size={23} className="chat-media-icon" />
@@ -1191,6 +1194,17 @@ export const ChatPage = () => {
         reporterId={currentUser?.uid}
         reportedUser={otherUser?.uid ? otherUser : { uid: otherUid, id: otherUid, displayName: otherUserName }}
         conversationId={chatId}
+      />
+
+      <CameraModal
+        isOpen={cameraModalOpen}
+        onClose={() => setCameraModalOpen(false)}
+        onCapture={(file) => {
+          if (file) sendImageAttachment(file);
+        }}
+        title="Take Photo for Chat"
+        subtitle="Capture a live photo to send directly"
+        initialFacingMode="user"
       />
     </div>
   );

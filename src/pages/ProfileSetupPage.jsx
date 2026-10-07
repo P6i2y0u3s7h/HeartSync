@@ -8,6 +8,7 @@ import WaveBackground from '../components/WaveBackground';
 import HeartSyncLogo from '../components/HeartSyncLogo';
 import { useAuth } from '../context/AuthContext';
 import { uploadProfileImage, uploadGalleryPhoto } from '../services/storageService';
+import CameraModal from '../components/CameraModal';
 
 export const ProfileSetupPage = () => {
   const { currentUser, userProfile, updateProfile } = useAuth();
@@ -29,6 +30,7 @@ export const ProfileSetupPage = () => {
   const [uploadingIdx, setUploadingIdx] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
 
   const fileInputRef = useRef(null);
   const [activeSlot, setActiveSlot] = useState(0);
@@ -72,6 +74,36 @@ export const ProfileSetupPage = () => {
     } catch (err) {
       console.error('Photo upload error:', err);
       // Fallback preview
+      const localUrl = URL.createObjectURL(file);
+      setPhotos(prev => {
+        const updated = [...prev];
+        updated[activeSlot] = localUrl;
+        return updated;
+      });
+    } finally {
+      setUploadingIdx(null);
+    }
+  };
+
+  const handleCameraCapture = async (file) => {
+    if (!file) return;
+    setUploadingIdx(activeSlot);
+    setErrorMsg('');
+    try {
+      const uid = currentUser?.uid || 'temp_user';
+      let downloadURL;
+      if (activeSlot === 0) {
+        downloadURL = await uploadProfileImage(uid, file);
+      } else {
+        downloadURL = await uploadGalleryPhoto(uid, file, activeSlot);
+      }
+      setPhotos(prev => {
+        const updated = [...prev];
+        updated[activeSlot] = downloadURL;
+        return updated;
+      });
+    } catch (err) {
+      console.error('Camera photo upload error:', err);
       const localUrl = URL.createObjectURL(file);
       setPhotos(prev => {
         const updated = [...prev];
@@ -165,7 +197,30 @@ export const ProfileSetupPage = () => {
 
         {/* 3 Photos row */}
         <div className="profile-photos-upload-row">
-          <label className="form-label-hs">Photos (Up to 3)</label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <label className="form-label-hs" style={{ margin: 0 }}>Photos (Up to 3)</label>
+            <button
+              type="button"
+              id="btn-profile-open-camera"
+              onClick={() => setCameraModalOpen(true)}
+              style={{
+                background: 'rgba(233, 30, 99, 0.1)',
+                border: '1px solid rgba(233, 30, 99, 0.3)',
+                color: '#e91e63',
+                borderRadius: '20px',
+                padding: '4px 12px',
+                fontSize: '12px',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              <Camera size={13} />
+              <span>Take Live Selfie</span>
+            </button>
+          </div>
           <div className="photo-slots-grid">
             {[0, 1, 2].map((slotIdx) => {
               const photo = photos[slotIdx];
@@ -296,6 +351,16 @@ export const ProfileSetupPage = () => {
 
       <WaveBackground />
       </div>
+
+      <CameraModal
+        isOpen={cameraModalOpen}
+        onClose={() => setCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        title="Take Profile Photo"
+        subtitle="Capture a live selfie for your HeartSync profile"
+        initialFacingMode="user"
+        isSelfieGuide={true}
+      />
     </div>
   );
 };

@@ -7,7 +7,8 @@ import HeartBackground from '../components/HeartBackground';
 import { useAuth } from '../context/AuthContext';
 import { getUserPreferences, updateUserPreferences } from '../services/userService';
 import { subscribeToBlockedUsers, unblockUser } from '../services/blockService';
-import { Shield, Bell, Lock, User, LogOut, Check, UserX, Unlock } from 'lucide-react';
+import { Shield, Bell, Lock, User, LogOut, Check, UserX, Unlock, ShieldCheck, Clock } from 'lucide-react';
+import VerificationModal from '../components/VerificationModal';
 
 export const SettingsPage = () => {
   const { currentUser, userProfile, logout } = useAuth();
@@ -25,6 +26,7 @@ export const SettingsPage = () => {
   const [unblockingId, setUnblockingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
 
   useEffect(() => {
     if (currentUser?.uid) {
@@ -203,10 +205,49 @@ export const SettingsPage = () => {
             </div>
 
             <div className="settings-info-row">
-              <span className="settings-info-label">Verification Status</span>
-              <span className="settings-info-val verified-badge-text">
-                <Check size={14} /> Verified Member
-              </span>
+              <span className="settings-info-label">Photo Verification</span>
+              <div className="settings-verify-action-wrap">
+                {userProfile?.isVerified || userProfile?.verificationStatus === 'verified' ? (
+                  <span className="settings-info-val verified-badge-text">
+                    <Check size={14} /> Verified
+                  </span>
+                ) : userProfile?.verificationStatus === 'pending' ? (
+                  <span className="settings-info-val pending-badge-text">
+                    <Clock size={14} /> Pending Review
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-settings-verify"
+                    onClick={() => setVerificationModalOpen(true)}
+                  >
+                    <ShieldCheck size={14} /> Get Verified
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="settings-info-row">
+              <span className="settings-info-label">ID Verification</span>
+              <div className="settings-verify-action-wrap">
+                {userProfile?.identityVerificationStatus === 'verified' ? (
+                  <span className="settings-info-val verified-badge-text">
+                    <ShieldCheck size={14} /> ID Verified
+                  </span>
+                ) : userProfile?.identityVerificationStatus === 'pending' ? (
+                  <span className="settings-info-val pending-badge-text">
+                    <Clock size={14} /> Pending Review
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-settings-verify"
+                    onClick={() => setVerificationModalOpen(true)}
+                  >
+                    <Shield size={14} /> Verify ID
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="settings-info-row">
@@ -237,6 +278,13 @@ export const SettingsPage = () => {
           </button>
         </div>
       </main>
+
+      <VerificationModal
+        isOpen={verificationModalOpen}
+        onClose={() => setVerificationModalOpen(false)}
+        currentUser={currentUser}
+        userProfile={userProfile}
+      />
 
       <BottomNavigation />
     </div>

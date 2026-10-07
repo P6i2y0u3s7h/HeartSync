@@ -22,7 +22,8 @@ import { sendLike } from '../services/likeService';
 import { useAuth } from '../context/AuthContext';
 import { getDeterministicChatId } from '../services/chatService';
 import { recordProfileView } from '../services/visitorService';
-import { toggleFavorite, checkIsFavorite } from '../services/favoriteService';
+import ProfilePostsGrid from '../components/ProfilePostsGrid';
+import { useUserPosts } from '../hooks/usePosts';
 import { blockUser } from '../services/blockService';
 
 export const UserProfileViewPage = () => {
@@ -38,6 +39,14 @@ export const UserProfileViewPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [savingFav, setSavingFav] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  // User Posts
+  const {
+    userPosts,
+    loading: postsLoading,
+    handleToggleLike,
+    handleDeletePost
+  } = useUserPosts(userId, currentUser?.uid);
 
   // Safety modals
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -296,6 +305,22 @@ export const UserProfileViewPage = () => {
             </div>
           </div>
         )}
+
+        {/* Photo Posts by this user */}
+        <div className="user-view-block user-view-posts-block">
+          <h3 className="user-view-heading">
+            Photo Posts {userPosts.length > 0 ? `(${userPosts.length})` : ''}
+          </h3>
+          <ProfilePostsGrid
+            posts={userPosts}
+            loading={postsLoading}
+            isOwnProfile={userId === currentUser?.uid}
+            currentUser={currentUser}
+            userProfile={userProfile}
+            onToggleLike={handleToggleLike}
+            onDeletePost={handleDeletePost}
+          />
+        </div>
 
         {/* Bottom Floating Bar */}
         <div className="user-view-actions-bar">
