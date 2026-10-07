@@ -121,6 +121,25 @@ export const ChatPage = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showMenu, activeMessageId, isSearching, isSelectionMode]);
 
+  // Dismiss active message action toolbar when clicking outside the active bubble
+  useEffect(() => {
+    if (!activeMessageId) return;
+    const handleOutsideClick = (e) => {
+      if (e.target.closest(`#msg-${activeMessageId}`)) return;
+      if (e.target.closest('.confirm-modal-card') || e.target.closest('.chat-dropdown-menu')) return;
+      setActiveMessageId(null);
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+    }, 20);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [activeMessageId]);
+
   // Extract other user id from chatId using robust helper
   const otherUid = extractOtherUid(chatId, currentUser?.uid);
 

@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { Copy, Trash2, Check, CheckCheck, Star, Ban, CheckSquare, Square } from 'lucide-react';
 
-const REACTION_EMOJIS = ['❤️', '😂', '👍', '🔥', '😮'];
+const REACTION_EMOJIS = ['😂', '👍', '🔥', '😮'];
 
 export const ChatBubble = ({
   message,
@@ -23,6 +23,11 @@ export const ChatBubble = ({
   onDeactivate,  // () => void           — called after an action is executed
 }) => {
   const [copied, setCopied] = useState(false);
+  const [placement, setPlacement] = useState('top');
+  const [toolbarStyle, setToolbarStyle] = useState({});
+
+  const outerWrapRef = useRef(null);
+  const toolbarRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
 
@@ -36,6 +41,93 @@ export const ChatBubble = ({
 
   const isStarred = Boolean(currentUid && message.starredBy?.[currentUid]);
   const isDeletedForEveryone = Boolean(message.isDeletedForEveryone);
+
+  // ── Viewport-aware, collision-free Toolbar Positioning ─────────────────────
+  const updatePosition = () => {
+    if (!outerWrapRef.current) return;
+    const outerEl = outerWrapRef.current;
+    const outerRect = outerEl.getBoundingClientRect();
+    const chatContainer = outerEl.closest('.chat-messages-container');
+    const containerRect = chatContainer
+      ? chatContainer.getBoundingClientRect()
+      : {
+          top: 0,
+          bottom: window.innerHeight,
+          left: 0,
+          right: window.innerWidth,
+          width: window.innerWidth,
+        };
+
+    // 1. VERTICAL POSITIONING
+    // Height of toolbar is ~42px, plus 8px connecting gap = 50px required clearance
+    const spaceAbove = outerRect.top - containerRect.top;
+    const neededHeight = 52;
+
+    // Position above when space is sufficient; safely flip below otherwise
+    const shouldPlaceAbove = spaceAbove >= neededHeight;
+    setPlacement(shouldPlaceAbove ? 'top' : 'bottom');
+
+    // 2. HORIZONTAL POSITIONING & VIEWPORT CLAMPING
+    // Keep at least 12px margin from chat container/viewport edges
+    const minLeft = containerRect.left + 12;
+    const maxRight = containerRect.right - 12;
+    const availableWidth = Math.max(200, maxRight - minLeft);
+
+    // Measure or estimate toolbar width
+    const toolbarWidth = toolbarRef.current?.offsetWidth || 300;
+    const effectiveWidth = Math.min(toolbarWidth, availableWidth);
+
+    // Desired viewport target:
+    // Outgoing (sent) -> anchor right edge of toolbar to right edge of message
+    // Incoming (received) -> anchor left edge of toolbar to left edge of message
+    let targetLeftInViewport = isOutgoing
+      ? outerRect.right - effectiveWidth
+      : outerRect.left;
+
+    // Viewport-aware bounds clamping
+    if (targetLeftInViewport + effectiveWidth > maxRight) {
+      targetLeftInViewport = maxRight - effectiveWidth;
+    }
+    if (targetLeftInViewport < minLeft) {
+      targetLeftInViewport = minLeft;
+    }
+
+    // Convert absolute viewport X to relative X for outerWrap (its containing block)
+    const relativeLeft = Math.round(targetLeftInViewport - outerRect.left);
+
+    setToolbarStyle({
+      left: `${relativeLeft}px`,
+      right: 'auto',
+      maxWidth: `${availableWidth}px`,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!isActionsActive) return;
+
+    updatePosition();
+
+    const handleUpdate = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('resize', handleUpdate);
+    const container = outerWrapRef.current?.closest('.chat-messages-container');
+    if (container) {
+      container.addEventListener('scroll', handleUpdate, { passive: true });
+    }
+
+    // Second-pass measurement after layout paint ensures exact offsetWidth
+    const rafId = requestAnimationFrame(updatePosition);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleUpdate);
+      if (container) {
+        container.removeEventListener('scroll', handleUpdate);
+      }
+    };
+  }, [isActionsActive, isOutgoing]);
 
   // ── Action handlers ────────────────────────────────────────────────────────
 
@@ -82,20 +174,20 @@ export const ChatBubble = ({
     if (onDeactivate) onDeactivate();
   };
 
-  // ── Touch long-press for mobile selection mode ────────────────────────────
+  // ── Touch long-press & tap for mobile interaction ─────────────────────────
 
-  const handleTouchStart = (e) => {
+  const handleTouchStart = () => {
     longPressFiredRef.current = false;
     if (isSelectionMode) return;
     longPressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true;
-      if (onStartSelection) {
-        onStartSelection(message.id);
+      if (onActivate) {
+        onActivate(message.id);
       }
     }, 450);
   };
 
-  const handleTouchEnd = (e) => {
+  const handleTouchEnd = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -103,7 +195,7 @@ export const ChatBubble = ({
   };
 
   const handleTouchMove = () => {
-    // Cancel long press if finger moves (scroll gesture)
+    // Cancel long press if finger moves (user is scrolling)
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -113,15 +205,15 @@ export const ChatBubble = ({
   const handleContextMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isSelectionMode && onStartSelection) {
-      onStartSelection(message.id);
+    if (!isSelectionMode && onActivate) {
+      onActivate(message.id);
     }
   };
 
-  // ── Primary click/tap: activate action toolbar ────────────────────────────
+  // ── Primary click/tap: toggle action toolbar ──────────────────────────────
 
   const handleRowClick = (e) => {
-    // If long-press just fired, ignore the click that follows
+    // If long-press just fired, ignore the subsequent click event
     if (longPressFiredRef.current) {
       longPressFiredRef.current = false;
       return;
@@ -133,7 +225,6 @@ export const ChatBubble = ({
       return;
     }
 
-    // Toggle the action toolbar via parent state
     e.stopPropagation();
     if (isActionsActive) {
       if (onDeactivate) onDeactivate();
@@ -178,7 +269,10 @@ export const ChatBubble = ({
         </div>
       )}
 
-      <div className="chat-bubble-outer-wrap">
+      <div
+        ref={outerWrapRef}
+        className={`chat-bubble-outer-wrap ${hasReactions ? 'has-reactions' : ''}`}
+      >
         <div
           className={`chat-bubble-body ${
             isOutgoing ? 'bubble-outgoing' : 'bubble-incoming'
@@ -222,20 +316,22 @@ export const ChatBubble = ({
           )}
         </div>
 
-        {/* Action toolbar — state-controlled, never hover-dependent */}
+        {/* Action toolbar — viewport-aware, anchored, never covers message */}
         {isActionsActive && !isSelectionMode && !isDeletedForEveryone && (
           <div
-            className={`chat-bubble-action-menu animate-fade-in ${isOutgoing ? 'menu-outgoing' : 'menu-incoming'}`}
-            // Prevent clicks inside the toolbar from bubbling up to the messages container
+            ref={toolbarRef}
+            className={`chat-bubble-action-menu placement-${placement} ${isOutgoing ? 'menu-outgoing' : 'menu-incoming'}`}
+            style={toolbarStyle}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* 1. Emoji reaction section: 😂 👍 🔥 😮 */}
             <div className="reaction-quick-picks">
               {REACTION_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
                   className="quick-react-btn"
-                  onPointerUp={(e) => handleReactionClick(e, emoji)}
+                  onClick={(e) => handleReactionClick(e, emoji)}
                   title={`React ${emoji}`}
                   aria-label={`React with ${emoji}`}
                 >
@@ -244,11 +340,15 @@ export const ChatBubble = ({
               ))}
             </div>
 
+            {/* 2. Subtle Divider */}
+            <div className="bubble-action-divider" aria-hidden="true" />
+
+            {/* 3. Text actions: Copy, Star, Select, Delete */}
             <div className="bubble-action-buttons">
               <button
                 type="button"
                 className="bubble-action-item"
-                onPointerUp={handleCopy}
+                onClick={handleCopy}
                 title="Copy message"
                 aria-label="Copy message"
               >
@@ -258,7 +358,7 @@ export const ChatBubble = ({
               <button
                 type="button"
                 className={`bubble-action-item ${isStarred ? 'starred-active' : ''}`}
-                onPointerUp={handleStar}
+                onClick={handleStar}
                 title={isStarred ? 'Remove from favorites' : 'Add to favorites'}
                 aria-label={isStarred ? 'Unstar message' : 'Star message'}
               >
@@ -269,7 +369,7 @@ export const ChatBubble = ({
               <button
                 type="button"
                 className="bubble-action-item"
-                onPointerUp={handleSelectClick}
+                onClick={handleSelectClick}
                 title="Select messages"
                 aria-label="Select message"
               >
@@ -280,7 +380,7 @@ export const ChatBubble = ({
                 <button
                   type="button"
                   className="bubble-action-item action-delete"
-                  onPointerUp={handleDelete}
+                  onClick={handleDelete}
                   title="Delete message"
                   aria-label="Delete message"
                 >
